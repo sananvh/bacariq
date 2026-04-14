@@ -37,7 +37,7 @@ export default async function LessonPage({ params }: PageProps) {
   const { data: progress } = await supabase
     .from('LessonProgress')
     .select('*')
-    .eq('"userId"', user.id)
+    .eq('userId', user.id)
     .eq('lessonId', id)
     .maybeSingle()
 
@@ -45,7 +45,7 @@ export default async function LessonPage({ params }: PageProps) {
   const { data: existingCert } = await supabase
     .from('Certificate')
     .select('id')
-    .eq('"userId"', user.id)
+    .eq('userId', user.id)
     .eq('lessonId', id)
     .maybeSingle()
 
@@ -54,8 +54,8 @@ export default async function LessonPage({ params }: PageProps) {
     .from('Lesson')
     .select('id, title')
     .eq('category', lesson.category)
-    .eq('"isPublished"', true)
-    .order('"createdAt"', { ascending: true })
+    .eq('isPublished', true)
+    .order('createdAt', { ascending: true })
     .limit(100)
 
   const lessonList = nextLesson ?? []
