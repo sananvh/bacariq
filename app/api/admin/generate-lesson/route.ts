@@ -1,0 +1,45 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { generateSingleLessonContent } from '@/lib/ai'
+import cuid from 'cuid'
+
+export const maxDuration = 120
+
+function db() {
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!)
+}
+
+export async function POST(req: NextRequest) {
+  const authSupabase = await createServerSupabaseClient()
+  const { data: { user } } = await authSupabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { programId, lesson, skillLabel, category, totalLessons } = await req.json()
+
+  const supabase = db()
+
+  // Generate full content for this single lesson
+  const content = await generateSingleLessonContent({
+    title: lesson.title,
+    description: lesson.description ?? '',
+    category,
+    difficulty: lesson.difficulty ?? 'beginner',
+    order: lesson.order,
+    totalLessons,
+    skillLabel,
+  })
+
+  await supabase.from('SkillLesson').insert({
+    id: cuid(),
+    programId,
+    order: lesson.order,
+    title: lesson.title,
+    description: lesson.description ?? '',
+    difficulty: lesson.difficulty ?? 'beginner',
+    durationSeconds: lesson.durationSeconds ?? 900,
+    content: content ?? null,
+  })
+
+  return NextResponse.json({ ok: true, order: lesson.order })
+}
