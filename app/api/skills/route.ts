@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { DIMENSIONS, type DimensionKey } from '@/lib/assessment-questions'
-import { generateSkillCurriculum } from '@/lib/ai'
+import { generateCurriculumOutline, generateSingleLessonContent } from '@/lib/ai'
 import cuid from 'cuid'
 
 const FREE_SKILL_LIMIT = 1
@@ -110,32 +110,44 @@ async function generateCurriculumInBackground(
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
     )
 
-    const curriculum = await generateSkillCurriculum(skillKey, skillLabel, category)
-    if (!curriculum) throw new Error('AI returned null')
+    // Phase 1: generate lightweight outline (titles, structure, exam questions)
+    const outline = await generateCurriculumOutline(skillKey, skillLabel, category)
+    if (!outline) throw new Error('AI returned null outline')
 
-    // Update program
     await supabase.from('SkillProgram').update({
-      programTitle: curriculum.programTitle,
-      programDescription: curriculum.programDescription,
-      totalDurationWeeks: curriculum.totalDurationWeeks ?? 4,
-      examQuestions: curriculum.finalExamQuestions ?? [],
-      status: 'ready',
+      programTitle: outline.programTitle,
+      programDescription: outline.programDescription,
+      totalDurationWeeks: outline.totalDurationWeeks ?? 4,
+      examQuestions: outline.finalExamQuestions ?? [],
     }).eq('id', programId)
 
-    // Insert lessons
-    const lessons = (curriculum.lessons ?? []).slice(0, 12)
-    for (const lesson of lessons) {
+    // Phase 2: generate each lesson's full content one by one
+    const lessonMetas = (outline.lessons ?? []).slice(0, 12)
+    for (const meta of lessonMetas) {
+      const lessonContent = await generateSingleLessonContent({
+        title: meta.title,
+        description: meta.description ?? '',
+        category,
+        difficulty: meta.difficulty ?? 'beginner',
+        order: meta.order,
+        totalLessons: lessonMetas.length,
+        skillLabel,
+      })
+
       await supabase.from('SkillLesson').insert({
         id: cuid(),
         programId,
-        order: lesson.order,
-        title: lesson.title,
-        description: lesson.description ?? '',
-        difficulty: lesson.difficulty ?? 'beginner',
-        durationSeconds: lesson.durationSeconds ?? 720,
-        content: lesson.content ?? null,
+        order: meta.order,
+        title: meta.title,
+        description: meta.description ?? '',
+        difficulty: meta.difficulty ?? 'beginner',
+        durationSeconds: meta.durationSeconds ?? 900,
+        content: lessonContent ?? null,
       })
     }
+
+    // Mark ready after all lessons are inserted
+    await supabase.from('SkillProgram').update({ status: 'ready' }).eq('id', programId)
   } catch (err) {
     console.error('Curriculum generation failed:', err)
     // Mark as error so UI can show retry

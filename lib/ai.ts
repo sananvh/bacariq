@@ -240,6 +240,110 @@ Qeyd: strengths massivindəki elementlər ən yüksək ballı 2 ölçüyə, grow
   }
 }
 
+// Phase 1 — lightweight: just titles, descriptions, difficulty per lesson + exam questions
+export async function generateCurriculumOutline(_skillKey: string, skillLabel: string, category: string) {
+  const message = await anthropic.messages.create({
+    model: 'claude-opus-4-6',
+    max_tokens: 3000,
+    system: BACARIQ_SYSTEM_PROMPT,
+    messages: [
+      {
+        role: 'user',
+        content: `"${skillLabel}" bacarığı üzrə öyrənmə proqramının strukturunu yarat (${category} kateqoriyası).
+
+12 dərslik proqram olmalıdır: ilk 4 beginner, növbəti 4 intermediate, son 4 advanced.
+
+Aşağıdakı JSON formatında cavab ver (dərslərin YALNIZ strukturunu yaz, məzmun deyil):
+{
+  "programTitle": "Proqramın adı",
+  "programDescription": "2-3 cümlə",
+  "totalDurationWeeks": 4,
+  "lessons": [
+    {
+      "order": 1,
+      "title": "Dərsin başlığı",
+      "description": "1-2 cümlə",
+      "difficulty": "beginner",
+      "durationSeconds": 900
+    }
+  ],
+  "finalExamQuestions": [
+    {
+      "question": "Sual mətni",
+      "options": ["A", "B", "C", "D"],
+      "correctIndex": 0,
+      "explanation": "İzah"
+    }
+  ]
+}
+
+Tam 12 dərs və 10 sual yarat.`,
+      },
+    ],
+  })
+
+  const raw = message.content[0].type === 'text' ? message.content[0].text : ''
+  const jsonMatch = raw.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) return null
+  try { return JSON.parse(jsonMatch[0]) } catch { return null }
+}
+
+// Phase 2 — full lesson content for a single lesson
+export async function generateSingleLessonContent(params: {
+  title: string
+  description: string
+  category: string
+  difficulty: string
+  order: number
+  totalLessons: number
+  skillLabel: string
+}) {
+  const difficultyAz = { beginner: 'başlanğıc', intermediate: 'orta', advanced: 'irəliləmiş' }[params.difficulty] ?? params.difficulty
+
+  const message = await anthropic.messages.create({
+    model: 'claude-opus-4-6',
+    max_tokens: 4000,
+    system: BACARIQ_SYSTEM_PROMPT,
+    messages: [
+      {
+        role: 'user',
+        content: `"${params.skillLabel}" proqramının ${params.order}/${params.totalLessons}-ci dərsi üçün tam mətn məzmunu yarat.
+
+Dərs başlığı: ${params.title}
+Qısa təsvir: ${params.description}
+Çətinlik: ${difficultyAz}
+Kateqoriya: ${params.category}
+
+Yalnız aşağıdakı JSON strukturunda cavab ver:
+{
+  "textContent": {
+    "intro": "Oxucunu dərhal cəlb edən giriş sualı və ya real həyat ssenariyi (2-3 cümlə)",
+    "mainConcept": "Əsas konsept — tam izahat, addım-addım metod, Azərbaycan iş mühitindən misallar. Minimum 400, maksimum 600 söz.",
+    "realExample": "Azərbaycandan konkret real vəziyyət — şirkət/şəxs adı, problem, tətbiq olunan metod, əldə edilən nəticə (150-200 söz)",
+    "framework": "Praktiki çərçivə: bu dərsin əsas metodunu tətbiq etmək üçün 3-5 addımlı sistem (150-200 söz)",
+    "exercises": [
+      "Məşq 1: konkret tapşırıq — bu gün edə biləcəyin",
+      "Məşq 2: kiminləsə birlikdə",
+      "Məşq 3: həftə ərzindəki praktika"
+    ],
+    "checkQuestions": [
+      "Bu dərsin əsas konseptini özünüzə necə izah edərdiniz?",
+      "Real həyatda bu metoddan nə zaman istifadə edərdiniz?",
+      "Bu bacarığı inkişaf etdirmək üçün sabah nə edəcəksiniz?"
+    ],
+    "nextStep": "Növbəti dərsi daha yaxşı mənimsəmək üçün bu gün edə biləcəyin 1 konkret addım"
+  }
+}`,
+      },
+    ],
+  })
+
+  const raw = message.content[0].type === 'text' ? message.content[0].text : ''
+  const jsonMatch = raw.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) return null
+  try { return JSON.parse(jsonMatch[0]) } catch { return null }
+}
+
 export async function generateSkillCurriculum(_skillKey: string, skillLabel: string, category: string) {
   const message = await anthropic.messages.create({
     model: 'claude-opus-4-6',
