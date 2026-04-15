@@ -252,5 +252,24 @@ alter table "SkillCertificate" disable row level security;
 create index if not exists idx_skillcert_user    on "SkillCertificate"("userId");
 create index if not exists idx_skillcert_program on "SkillCertificate"("programId");
 
+-- 15. Admin approval columns on SkillLesson
+alter table "SkillLesson" add column if not exists "adminApproved" boolean not null default false;
+alter table "SkillLesson" add column if not exists "adminComment" text;
+alter table "SkillLesson" add column if not exists "approvedAt" timestamptz;
+
+-- 16. CurriculumSuggestion — from trend analysis
+create table if not exists "CurriculumSuggestion" (
+  id              text primary key,
+  "skillName"     text not null,
+  category        text,
+  reasoning       text,
+  "suggestedLesson" text,
+  "demandLevel"   text,
+  status          text not null default 'pending',
+  "createdAt"     timestamptz not null default now(),
+  unique ("skillName")
+);
+alter table "CurriculumSuggestion" disable row level security;
+
 -- Qeydiyyatdan sonra özünüzü admin edin:
 -- update "User" set role = 'ADMIN' where email = 'your@email.com';

@@ -142,28 +142,35 @@ export async function getSkillTrends() {
     messages: [
       {
         role: 'user',
-        content: `Bu həftə Azərbaycan iş bazarı üçün ən tələb olunan peşəkar bacarıqları analiz et.
+        content: `Azərbaycan peşəkar inkişaf platforması üçün hərtərəfli bacarıq tələbi analizi apar.
 
-LinkedIn, WEF Future of Jobs, Coursera trendlərini və Azərbaycan lokal bazarını nəzərə al.
+Aşağıdakıları nəzərə al:
+1. Azərbaycan iş bazarı reallıqları (SOCAR, PASHA Holding, Bank sektoru, startaplar, dövlət strukturları)
+2. Qlobal trendlər: LinkedIn Learning, WEF Future of Jobs 2025, Coursera Global Skills Report
+3. İstifadəçilərin tez-tez dile gətirdiyi çətinlik sahələri (kommunikasiya, liderlik, analitika)
 
 JSON formatında cavab ver:
 {
   "week": "${new Date().toISOString().split('T')[0]}",
+  "feedbackSummary": "İstifadəçi rəylərinin və bazar tələbinin 3-4 cümləlik ümumiləşdirilməsi",
+  "userPainPoints": ["ağrı nöqtəsi 1", "ağrı nöqtəsi 2", "ağrı nöqtəsi 3"],
   "topSkills": [
     {
       "skill": "Bacarıq adı",
       "category": "Kateqoriya",
       "demandLevel": "yüksək|orta|aşağı",
-      "reasoning": "Niyə bu bacarıq tələb olunur",
+      "reasoning": "Niyə bu bacarıq tələb olunur — konkret Azərbaycan konteksti ilə",
       "suggestedLesson": "Tövsiyə olunan dərs başlığı"
     }
   ],
-  "emergingTrends": ["trend1", "trend2"],
+  "emergingTrends": ["trend1", "trend2", "trend3"],
   "weeklyPlan": {
     "priorityLessons": ["dərs1", "dərs2", "dərs3", "dərs4", "dərs5"],
     "updateExisting": ["köhnə dərsin başlığı"]
   }
-}`,
+}
+
+Minimum 6 bacarıq tövsiyəsi ver.`,
       },
     ],
   })

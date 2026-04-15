@@ -2,17 +2,15 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Brain, LayoutDashboard, BookOpen, Users, BarChart3, Zap, Settings, LogOut, TrendingUp, GraduationCap } from 'lucide-react'
+import { Brain, LayoutDashboard, Users, BarChart3, Settings, LogOut, TrendingUp, GraduationCap } from 'lucide-react'
 import { createClient } from '@/lib/supabase'
 
 const NAV = [
   { href: '/admin', label: 'İcmal', icon: LayoutDashboard, exact: true },
+  { href: '/admin/trends', label: 'Trend Analizi', icon: TrendingUp },
   { href: '/admin/curriculum', label: 'Kurikulum', icon: GraduationCap },
-  { href: '/admin/lessons', label: 'Dərslər', icon: BookOpen },
   { href: '/admin/users', label: 'İstifadəçilər', icon: Users },
-  { href: '/admin/ai', label: 'AI Motor', icon: Zap },
   { href: '/admin/analytics', label: 'Analitika', icon: BarChart3 },
-  { href: '/admin/trends', label: 'Trendlər', icon: TrendingUp },
   { href: '/admin/settings', label: 'Parametrlər', icon: Settings },
 ]
 
