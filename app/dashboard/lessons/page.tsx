@@ -1,7 +1,19 @@
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import Link from 'next/link'
-import { BookOpen, Lock, ChevronRight, BarChart3, ArrowRight } from 'lucide-react'
+import { BookOpen, Lock, ArrowRight, BarChart3, Loader2, Trophy } from 'lucide-react'
 import { DIMENSIONS, type DimensionKey } from '@/lib/assessment-questions'
+
+type SkillSection = {
+  skillKey: string
+  skillLabel: string
+  skillIcon: string
+  dim: (typeof DIMENSIONS)[DimensionKey]
+  programId: string | null
+  programStatus: string | null
+  completed: number
+  total: number
+  pct: number
+}
 
 export default async function DashboardLessonsPage() {
   const supabase = await createServerSupabaseClient()
@@ -45,15 +57,15 @@ export default async function DashboardLessonsPage() {
     )
   }
 
-  // Fetch lessons only for active skill categories
-  type SkillSection = {
-    skillKey: string
-    skillLabel: string
-    skillIcon: string
-    dim: (typeof DIMENSIONS)[DimensionKey]
-    lessons: any[]
-    completed: number
-    pct: number
+  // Fetch SkillPrograms for the user
+  const { data: programs } = await supabase
+    .from('SkillProgram')
+    .select('id, skillKey, status')
+    .eq('userId', user!.id)
+
+  const programBySkill: Record<string, { id: string; status: string }> = {}
+  for (const p of programs ?? []) {
+    programBySkill[p.skillKey] = { id: p.id, status: p.status }
   }
 
   const sections: SkillSection[] = []
@@ -62,44 +74,49 @@ export default async function DashboardLessonsPage() {
     const dim = DIMENSIONS[skill.skillKey as DimensionKey]
     if (!dim) continue
 
-    const { data: lessons } = await supabase
-      .from('Lesson')
-      .select('id, title, category, difficulty, duration, isFree, description')
-      .eq('category', dim.lessonCategory)
-      .eq('isPublished', true)
-      .order('createdAt', { ascending: true })
-
-    const lessonList = lessons ?? []
-    const lessonIds = lessonList.map((l: any) => l.id)
+    const prog = programBySkill[skill.skillKey] ?? null
 
     let completedCount = 0
-    if (lessonIds.length > 0) {
-      const { count } = await supabase
-        .from('LessonProgress')
+    let totalCount = 0
+
+    if (prog && prog.status === 'ready') {
+      const { count: tc } = await supabase
+        .from('SkillLesson')
         .select('*', { count: 'exact', head: true })
-        .eq('userId', user!.id)
-        .eq('isCompleted', true)
-        .in('lessonId', lessonIds)
-      completedCount = count ?? 0
+        .eq('programId', prog.id)
+      totalCount = tc ?? 0
+
+      if (totalCount > 0) {
+        const { data: lessonRows } = await supabase
+          .from('SkillLesson')
+          .select('id')
+          .eq('programId', prog.id)
+        const ids = (lessonRows ?? []).map((l: any) => l.id)
+        if (ids.length > 0) {
+          const { count: cc } = await supabase
+            .from('SkillLessonProgress')
+            .select('*', { count: 'exact', head: true })
+            .eq('userId', user!.id)
+            .eq('isCompleted', true)
+            .in('lessonId', ids)
+          completedCount = cc ?? 0
+        }
+      }
     }
 
-    const pct = lessonList.length > 0 ? Math.round((completedCount / lessonList.length) * 100) : 0
+    const pct = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0
 
     sections.push({
-      skillKey:   skill.skillKey,
-      skillLabel: skill.skillLabel,
-      skillIcon:  skill.skillIcon,
+      skillKey:      skill.skillKey,
+      skillLabel:    skill.skillLabel,
+      skillIcon:     skill.skillIcon,
       dim,
-      lessons:    lessonList,
-      completed:  completedCount,
+      programId:     prog?.id ?? null,
+      programStatus: prog?.status ?? null,
+      completed:     completedCount,
+      total:         totalCount,
       pct,
     })
-  }
-
-  const difficultyLabel: Record<string, string> = {
-    beginner:     'Başlanğıc',
-    intermediate: 'Orta',
-    advanced:     'İrəliləmiş',
   }
 
   return (
@@ -107,7 +124,7 @@ export default async function DashboardLessonsPage() {
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-extrabold text-gray-900">Dərslər</h1>
-          <p className="text-gray-500 mt-1">Aktiv bacarıqlarınıza uyğun dərslər</p>
+          <p className="text-gray-500 mt-1">Aktiv bacarıqlarınıza uyğun proqramlar</p>
         </div>
         <Link
           href={latestAssessment ? `/assessment/results/${latestAssessment.id}` : '/assessment/test'}
@@ -121,8 +138,8 @@ export default async function DashboardLessonsPage() {
         <div className="bg-violet-50 border border-violet-200 rounded-2xl p-5 mb-8 flex items-center gap-4">
           <Lock size={20} className="text-violet-500 shrink-0" />
           <div className="flex-1">
-            <p className="font-bold text-violet-900 text-sm">Pro Plana Keç — Bütün Dərsləri Aç</p>
-            <p className="text-violet-700 text-xs mt-0.5">Sertifikat + AI tövsiyəsi + həftəlik yeni məzmun</p>
+            <p className="font-bold text-violet-900 text-sm">Pro Plana Keç — Bütün Bacarıqları Aç</p>
+            <p className="text-violet-700 text-xs mt-0.5">Sertifikat + AI tərəfindən hazırlanmış proqram + həftəlik yeni məzmun</p>
           </div>
           <Link
             href="/upgrade"
@@ -133,88 +150,75 @@ export default async function DashboardLessonsPage() {
         </div>
       )}
 
-      <div className="space-y-8">
+      <div className="space-y-4">
         {sections.map(section => (
           <div key={section.skillKey} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            {/* Skill header */}
             <div
-              className="px-6 py-4 flex items-center gap-3"
+              className="px-6 py-5 flex items-center gap-4"
               style={{ backgroundColor: section.dim.bgColor, borderBottom: `1px solid ${section.dim.borderColor}` }}
             >
-              <span className="text-2xl">{section.skillIcon}</span>
+              <span className="text-3xl">{section.skillIcon}</span>
               <div className="flex-1 min-w-0">
                 <h2 className="font-extrabold text-gray-900">{section.skillLabel}</h2>
-                <div className="flex items-center gap-3 mt-1">
-                  <div className="flex-1 h-1.5 bg-white/60 rounded-full overflow-hidden max-w-[160px]">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{ width: `${section.pct}%`, backgroundColor: section.dim.color }}
-                    />
+
+                {section.programStatus === 'generating' && (
+                  <p className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                    <Loader2 size={12} className="animate-spin" /> Proqram hazırlanır...
+                  </p>
+                )}
+                {section.programStatus === 'error' && (
+                  <p className="text-xs text-red-500 mt-1">Xəta baş verdi — yenidən cəhd edin</p>
+                )}
+                {section.programStatus === 'ready' && (
+                  <div className="flex items-center gap-3 mt-1.5">
+                    <div className="flex-1 h-1.5 bg-white/60 rounded-full overflow-hidden max-w-[160px]">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${section.pct}%`, backgroundColor: section.dim.color }}
+                      />
+                    </div>
+                    <span className="text-xs font-semibold text-gray-600">
+                      {section.completed}/{section.total} dərs · {section.pct}%
+                    </span>
                   </div>
-                  <span className="text-xs font-semibold text-gray-600">
-                    {section.completed}/{section.lessons.length} tamamlandı · {section.pct}%
-                  </span>
-                </div>
+                )}
+                {!section.programId && (
+                  <p className="text-xs text-gray-400 mt-1">Proqram hələ başladılmayıb</p>
+                )}
               </div>
-              <Link
-                href={`/learn/${encodeURIComponent(section.dim.lessonCategory)}`}
-                className="text-xs font-bold px-3 py-1.5 rounded-xl transition shrink-0"
-                style={{ backgroundColor: section.dim.color, color: '#fff' }}
-              >
-                Hamısı →
-              </Link>
+
+              {section.programId && section.programStatus === 'ready' && (
+                <Link
+                  href={`/program/${section.programId}`}
+                  className="flex items-center gap-1.5 text-xs font-bold px-4 py-2 rounded-xl transition shrink-0"
+                  style={{ backgroundColor: section.dim.color, color: '#fff' }}
+                >
+                  {section.pct === 100 ? <><Trophy size={13} /> Bitir</> : section.completed > 0 ? 'Davam et →' : 'Başla →'}
+                </Link>
+              )}
+              {section.programId && section.programStatus === 'generating' && (
+                <span className="text-xs text-gray-400 shrink-0">Gözləyin...</span>
+              )}
+              {!section.programId && (
+                <span className="text-xs text-gray-300 shrink-0">
+                  <BookOpen size={16} />
+                </span>
+              )}
             </div>
 
-            {/* Lesson list */}
-            {section.lessons.length === 0 ? (
-              <div className="p-8 text-center">
-                <BookOpen size={32} className="text-gray-200 mx-auto mb-3" />
-                <p className="text-gray-400 text-sm">Bu kateqoriyada hələ dərs yoxdur.</p>
+            {/* Progress details row when ready */}
+            {section.programStatus === 'ready' && section.programId && (
+              <div className="px-6 py-3 flex items-center justify-between">
+                <p className="text-xs text-gray-400">
+                  {section.total} dərs · AI tərəfindən hazırlanmış proqram
+                </p>
+                <Link
+                  href={`/program/${section.programId}`}
+                  className="text-xs text-violet-600 hover:underline font-semibold"
+                >
+                  Proqrama Bax →
+                </Link>
               </div>
-            ) : (
-              <ul className="divide-y divide-gray-50">
-                {section.lessons.map((lesson: any) => {
-                  const locked = !isPro && !lesson.isFree
-                  return (
-                    <li key={lesson.id}>
-                      {locked ? (
-                        <div className="flex items-center gap-4 px-6 py-4 opacity-50 cursor-not-allowed">
-                          <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 bg-gray-100">
-                            <Lock size={15} className="text-gray-400" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-gray-800 text-sm truncate">{lesson.title}</p>
-                            <p className="text-gray-400 text-xs mt-0.5">
-                              {difficultyLabel[lesson.difficulty] ?? lesson.difficulty} · {Math.round((lesson.duration ?? 900) / 60)} dəq · Pro
-                            </p>
-                          </div>
-                          <Lock size={14} className="text-gray-300 shrink-0" />
-                        </div>
-                      ) : (
-                        <Link
-                          href={`/lessons/${lesson.id}`}
-                          className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50 transition"
-                        >
-                          <div
-                            className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
-                            style={{ backgroundColor: section.dim.bgColor }}
-                          >
-                            <BookOpen size={15} style={{ color: section.dim.color }} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-gray-800 text-sm truncate">{lesson.title}</p>
-                            <p className="text-gray-400 text-xs mt-0.5">
-                              {difficultyLabel[lesson.difficulty] ?? lesson.difficulty} · {Math.round((lesson.duration ?? 900) / 60)} dəq
-                              {lesson.isFree && <span className="ml-1.5 text-green-600 font-semibold">· Pulsuz</span>}
-                            </p>
-                          </div>
-                          <ChevronRight size={16} className="text-gray-300 shrink-0" />
-                        </Link>
-                      )}
-                    </li>
-                  )
-                })}
-              </ul>
             )}
           </div>
         ))}

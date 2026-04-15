@@ -16,7 +16,7 @@ const PLANS = [
     price: '0',
     period: '',
     highlight: false,
-    features: ['3 tanıtım dərsinə giriş', 'Platformanı sına', 'Temel məzmun'],
+    features: ['1 bacarıq proqramına giriş', 'Platformanı sına', 'Temel məzmun'],
     cta: 'Başla',
     href: '/register',
   },
@@ -273,7 +273,7 @@ export default function LandingPage() {
             Bacarıqların sənin ən böyük investisiyan
           </h2>
           <p className="text-violet-200 text-lg mb-8">
-            Pulsuz hesab aç, 3 dərsi sına, sonra qərar ver.
+            Pulsuz hesab aç, 1 bacarıq proqramını sına, sonra qərar ver.
           </p>
           <Link
             href="/register"

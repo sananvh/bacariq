@@ -167,5 +167,90 @@ create index if not exists idx_userskill_user on "UserSkill"("userId");
 -- Migration: add column for existing schemas
 alter table "User" add column if not exists "subscriptionExpiresAt" timestamptz;
 
+-- 10. SkillProgram — AI-generated skill curriculum for a user
+create table if not exists "SkillProgram" (
+  id                   text primary key,
+  "userId"             uuid not null references "User"(id) on delete cascade,
+  "skillKey"           text not null,
+  "skillLabel"         text not null,
+  "skillIcon"          text,
+  category             text,
+  "programTitle"       text not null,
+  "programDescription" text,
+  "totalDurationWeeks" integer default 4,
+  "examQuestions"      jsonb default '[]',
+  status               text not null default 'generating',
+  "createdAt"          timestamptz not null default now()
+);
+
+alter table "SkillProgram" disable row level security;
+create index if not exists idx_skillprogram_user     on "SkillProgram"("userId");
+create index if not exists idx_skillprogram_skillkey on "SkillProgram"("skillKey");
+create unique index if not exists idx_skillprogram_user_skill on "SkillProgram"("userId", "skillKey");
+
+-- 11. SkillLesson — individual lessons within a SkillProgram
+create table if not exists "SkillLesson" (
+  id              text primary key,
+  "programId"     text not null references "SkillProgram"(id) on delete cascade,
+  "order"         integer not null,
+  title           text not null,
+  description     text,
+  difficulty      text not null default 'beginner',
+  "durationSeconds" integer default 720,
+  content         jsonb,
+  "createdAt"     timestamptz not null default now()
+);
+
+alter table "SkillLesson" disable row level security;
+create index if not exists idx_skilllesson_program on "SkillLesson"("programId");
+create index if not exists idx_skilllesson_order   on "SkillLesson"("programId", "order");
+
+-- 12. SkillLessonProgress — tracks which lessons a user has completed
+create table if not exists "SkillLessonProgress" (
+  id            text primary key,
+  "userId"      uuid not null references "User"(id) on delete cascade,
+  "lessonId"    text not null references "SkillLesson"(id) on delete cascade,
+  "programId"   text not null references "SkillProgram"(id) on delete cascade,
+  "isCompleted" boolean not null default true,
+  "completedAt" timestamptz not null default now(),
+  unique ("userId", "lessonId")
+);
+
+alter table "SkillLessonProgress" disable row level security;
+create index if not exists idx_skillprogress_user    on "SkillLessonProgress"("userId");
+create index if not exists idx_skillprogress_program on "SkillLessonProgress"("programId");
+
+-- 13. SkillExamResult — stores final exam attempts
+create table if not exists "SkillExamResult" (
+  id          text primary key,
+  "userId"    uuid not null references "User"(id) on delete cascade,
+  "programId" text not null references "SkillProgram"(id) on delete cascade,
+  answers     jsonb,
+  score       integer not null,
+  passed      boolean not null default false,
+  "takenAt"   timestamptz not null default now(),
+  unique ("userId", "programId")
+);
+
+alter table "SkillExamResult" disable row level security;
+create index if not exists idx_skillexam_user    on "SkillExamResult"("userId");
+create index if not exists idx_skillexam_program on "SkillExamResult"("programId");
+
+-- 14. SkillCertificate — issued when user passes the final exam
+create table if not exists "SkillCertificate" (
+  id           text primary key,
+  "userId"     uuid not null references "User"(id) on delete cascade,
+  "programId"  text not null references "SkillProgram"(id) on delete cascade,
+  "skillLabel" text not null,
+  "userName"   text not null,
+  score        integer not null,
+  "issuedAt"   timestamptz not null default now(),
+  unique ("userId", "programId")
+);
+
+alter table "SkillCertificate" disable row level security;
+create index if not exists idx_skillcert_user    on "SkillCertificate"("userId");
+create index if not exists idx_skillcert_program on "SkillCertificate"("programId");
+
 -- Qeydiyyatdan sonra özünüzü admin edin:
 -- update "User" set role = 'ADMIN' where email = 'your@email.com';

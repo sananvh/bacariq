@@ -240,6 +240,114 @@ Qeyd: strengths massivindəki elementlər ən yüksək ballı 2 ölçüyə, grow
   }
 }
 
+export async function generateSkillCurriculum(_skillKey: string, skillLabel: string, category: string) {
+  const message = await anthropic.messages.create({
+    model: 'claude-opus-4-6',
+    max_tokens: 6000,
+    system: BACARIQ_SYSTEM_PROMPT,
+    messages: [
+      {
+        role: 'user',
+        content: `"${skillLabel}" bacarığı üzrə tam öyrənmə proqramı yarat. Bu proqram ${category} kateqoriyasına aiddir.
+
+Proqram başlanğıcdan irəliləmiş səviyyəyə qədər 12 dərs əhatə etməlidir. Hər dərs 10-15 dəqiqəlik mətn + audio formatda olmalıdır.
+
+Aşağıdakı JSON formatında cavab ver:
+{
+  "programTitle": "Proqramın adı",
+  "programDescription": "Proqramın ümumi təsviri (2-3 cümlə)",
+  "totalDurationWeeks": 4,
+  "lessons": [
+    {
+      "order": 1,
+      "title": "Dərsin başlığı",
+      "description": "Dərsin qısa təsviri (1-2 cümlə)",
+      "difficulty": "beginner|intermediate|advanced",
+      "durationSeconds": 720,
+      "content": {
+        "textContent": {
+          "intro": "Giriş sualı və ya real həyat problemi (oxucunu dərhal cəlb edən)",
+          "mainConcept": "Əsas konsept — ətraflı izahat, nümunələr, Azərbaycan iş mühitindən misallar (400-600 söz)",
+          "realExample": "Azərbaycandan konkret real həyat nümunəsi — şirkət adı, vəziyyət, nəticə",
+          "framework": "Praktiki çərçivə və ya addım-addım metod",
+          "exercises": ["Məşq 1", "Məşq 2", "Məşq 3"],
+          "checkQuestions": ["Yoxlama sualı 1", "Yoxlama sualı 2", "Yoxlama sualı 3"],
+          "nextStep": "Növbəti dərsə hazırlıq üçün konkret addım"
+        }
+      }
+    }
+  ],
+  "finalExamQuestions": [
+    {
+      "question": "Sual mətni",
+      "options": ["A seçimi", "B seçimi", "C seçimi", "D seçimi"],
+      "correctIndex": 0,
+      "explanation": "Düzgün cavabın izahı"
+    }
+  ]
+}
+
+Tələblər:
+- Tam 12 dərs yarat (order: 1-dən 12-yə)
+- İlk 4 dərs beginner, növbəti 4-ü intermediate, son 4-ü advanced
+- finalExamQuestions: tam 10 sual (çoxvariantlı, 1 düzgün cavab)
+- Bütün məzmun Azərbaycan dilində olmalıdır
+- Hər dərsin textContent.mainConcept hissəsi ən azı 400 söz olmalıdır`,
+      },
+    ],
+  })
+
+  const raw = message.content[0].type === 'text' ? message.content[0].text : ''
+  const jsonMatch = raw.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) return null
+
+  try {
+    return JSON.parse(jsonMatch[0])
+  } catch {
+    return null
+  }
+}
+
+export async function generateFinalExam(skillLabel: string, _category: string) {
+  const message = await anthropic.messages.create({
+    model: 'claude-opus-4-6',
+    max_tokens: 3000,
+    system: BACARIQ_SYSTEM_PROMPT,
+    messages: [
+      {
+        role: 'user',
+        content: `"${skillLabel}" bacarığı üzrə yekun imtahan sualları yarat.
+
+10 sual — çoxvariantlı, hər birinin 4 seçimi var, 1 düzgün cavab.
+Suallar proqramın bütün mövzularını əhatə etməlidir — başlanğıcdan irəliləmişə qədər.
+
+JSON formatında cavab ver:
+{
+  "questions": [
+    {
+      "question": "Sual mətni",
+      "options": ["A", "B", "C", "D"],
+      "correctIndex": 0,
+      "explanation": "Düzgün cavabın izahı (1-2 cümlə)"
+    }
+  ],
+  "passingScore": 70
+}`,
+      },
+    ],
+  })
+
+  const raw = message.content[0].type === 'text' ? message.content[0].text : ''
+  const jsonMatch = raw.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) return null
+
+  try {
+    return JSON.parse(jsonMatch[0])
+  } catch {
+    return null
+  }
+}
+
 export async function getPersonalizedPath(userProfile: {
   completedLessons: string[]
   categories: string[]

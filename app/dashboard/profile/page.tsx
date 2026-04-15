@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { DIMENSIONS, type DimensionKey } from '@/lib/assessment-questions'
 
 const PLAN_INFO: Record<string, { label: string; desc: string; color: string }> = {
-  FREE:  { label: 'Pulsuz',  desc: '3 tanıtım dərsinə giriş',         color: 'bg-gray-100 text-gray-700' },
+  FREE:  { label: 'Pulsuz',  desc: '1 bacarıq proqramına giriş',       color: 'bg-gray-100 text-gray-700' },
   PRO:   { label: 'Pro',     desc: 'Bütün dərslərə + AI tövsiyəsi',   color: 'bg-violet-100 text-violet-700' },
   TEAM:  { label: 'Komanda', desc: '5 üzv + komanda analitikası',      color: 'bg-blue-100 text-blue-700' },
 }
