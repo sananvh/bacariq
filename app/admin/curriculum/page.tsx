@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { DIMENSIONS, type DimensionKey } from '@/lib/assessment-questions'
-import { Loader2, CheckCircle, AlertCircle, Play, RefreshCw } from 'lucide-react'
+import { Loader2, CheckCircle, AlertCircle, Play, RefreshCw, BookOpen } from 'lucide-react'
 
 const SKILL_KEYS: DimensionKey[] = ['K', 'L', 'A', 'D', 'S', 'C']
+const TOTAL_LESSONS = 12
 
 interface ProgramStatus {
   id: string
@@ -18,7 +19,8 @@ export default function CurriculumAdminPage() {
   const [programs, setPrograms] = useState<ProgramStatus[]>([])
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState<string | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
+  const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   async function fetchPrograms() {
     const res = await fetch('/api/admin/curriculum-status')
@@ -31,9 +33,15 @@ export default function CurriculumAdminPage() {
 
   useEffect(() => {
     fetchPrograms()
-    const interval = setInterval(fetchPrograms, 8000)
-    return () => clearInterval(interval)
   }, [])
+
+  // Faster polling when anything is generating
+  useEffect(() => {
+    const hasGenerating = programs.some(p => p.status === 'generating')
+    if (intervalRef.current) clearInterval(intervalRef.current)
+    intervalRef.current = setInterval(fetchPrograms, hasGenerating ? 3000 : 10000)
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
+  }, [programs])
 
   async function handleGenerate(skillKey: DimensionKey) {
     setGenerating(skillKey)
@@ -45,10 +53,10 @@ export default function CurriculumAdminPage() {
     })
     const json = await res.json()
     if (res.ok) {
-      setMessage(`"${DIMENSIONS[skillKey].fullLabel}" üçün generasiya başladı. Dərslər bir-bir yazılır...`)
+      setMessage({ text: `"${DIMENSIONS[skillKey].fullLabel}" üçün generasiya başladı — dərslər bir-bir yazılır.`, type: 'success' })
       fetchPrograms()
     } else {
-      setMessage(`Xəta: ${json.error}`)
+      setMessage({ text: `Xəta: ${json.error}`, type: 'error' })
     }
     setGenerating(null)
   }
@@ -63,83 +71,163 @@ export default function CurriculumAdminPage() {
       </div>
 
       {message && (
-        <div className="bg-violet-900/40 border border-violet-700 rounded-2xl p-4 mb-6 text-violet-200 text-sm">
-          {message}
+        <div className={`border rounded-2xl p-4 mb-6 text-sm ${
+          message.type === 'success'
+            ? 'bg-violet-900/40 border-violet-700 text-violet-200'
+            : 'bg-red-900/40 border-red-700 text-red-300'
+        }`}>
+          {message.text}
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {SKILL_KEYS.map(key => {
-          const dim = DIMENSIONS[key]
-          const prog = getProgram(key)
-          const isGenerating = prog?.status === 'generating'
-          const isReady = prog?.status === 'ready'
-          const isError = prog?.status === 'error'
-          const isRunning = generating === key
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 size={36} className="text-violet-500 animate-spin" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {SKILL_KEYS.map(key => {
+            const dim = DIMENSIONS[key]
+            const prog = getProgram(key)
+            const isGenerating = prog?.status === 'generating'
+            const isReady = prog?.status === 'ready'
+            const isError = prog?.status === 'error'
+            const isStarting = generating === key
+            const count = prog?.lessonCount ?? 0
+            const pct = Math.round((count / TOTAL_LESSONS) * 100)
 
-          return (
-            <div key={key} className="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <span className="text-3xl">{dim.icon}</span>
-                  <div>
-                    <h2 className="font-extrabold text-white">{dim.fullLabel}</h2>
-                    <p className="text-gray-400 text-xs mt-0.5">{dim.lessonCategory}</p>
-                  </div>
-                </div>
-
-                {/* Status badge */}
-                <div className="shrink-0">
-                  {isGenerating && (
-                    <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-400 bg-amber-400/10 px-3 py-1.5 rounded-full">
-                      <Loader2 size={12} className="animate-spin" /> Generasiya olunur...
-                    </span>
-                  )}
-                  {isReady && (
-                    <span className="flex items-center gap-1.5 text-xs font-semibold text-green-400 bg-green-400/10 px-3 py-1.5 rounded-full">
-                      <CheckCircle size={12} /> Hazır
-                    </span>
-                  )}
-                  {isError && (
-                    <span className="flex items-center gap-1.5 text-xs font-semibold text-red-400 bg-red-400/10 px-3 py-1.5 rounded-full">
-                      <AlertCircle size={12} /> Xəta
-                    </span>
-                  )}
-                  {!prog && (
-                    <span className="text-xs text-gray-600 font-semibold">Yoxdur</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Lesson count */}
-              {prog && (
-                <div className="mt-4 p-3 bg-gray-800 rounded-xl">
-                  <p className="text-xs text-gray-400 mb-1">{prog.programTitle}</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-white">{prog.lessonCount} / 12 dərs</span>
-                    <div className="w-32 h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-violet-500 rounded-full transition-all"
-                        style={{ width: `${(prog.lessonCount / 12) * 100}%` }}
-                      />
+            return (
+              <div
+                key={key}
+                className={`bg-gray-900 border rounded-2xl p-6 transition-all ${
+                  isGenerating ? 'border-violet-600 shadow-lg shadow-violet-900/30' : 'border-gray-800'
+                }`}
+              >
+                {/* Header */}
+                <div className="flex items-start justify-between gap-3 mb-5">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">{dim.icon}</span>
+                    <div>
+                      <h2 className="font-extrabold text-white text-base">{dim.fullLabel}</h2>
+                      <p className="text-gray-500 text-xs mt-0.5">{dim.lessonCategory}</p>
                     </div>
                   </div>
+                  <div className="shrink-0">
+                    {isGenerating && (
+                      <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-400 bg-amber-400/10 px-3 py-1.5 rounded-full border border-amber-400/20">
+                        <Loader2 size={11} className="animate-spin" /> Generasiya olunur
+                      </span>
+                    )}
+                    {isReady && (
+                      <span className="flex items-center gap-1.5 text-xs font-semibold text-green-400 bg-green-400/10 px-3 py-1.5 rounded-full border border-green-400/20">
+                        <CheckCircle size={11} /> Hazır
+                      </span>
+                    )}
+                    {isError && (
+                      <span className="flex items-center gap-1.5 text-xs font-semibold text-red-400 bg-red-400/10 px-3 py-1.5 rounded-full border border-red-400/20">
+                        <AlertCircle size={11} /> Xəta
+                      </span>
+                    )}
+                    {!prog && (
+                      <span className="text-xs text-gray-600 font-semibold">Başlanmayıb</span>
+                    )}
+                  </div>
                 </div>
-              )}
 
-              {/* Generate button */}
-              <div className="mt-4">
+                {/* Progress section — shown when generating or ready */}
+                {prog && (
+                  <div className="mb-5">
+                    {/* Big progress bar */}
+                    <div className="flex items-center justify-between text-xs mb-2">
+                      <span className="text-gray-400 font-medium">
+                        {isGenerating
+                          ? `Dərs ${count} / ${TOTAL_LESSONS} yazılır...`
+                          : isReady
+                          ? `${TOTAL_LESSONS} / ${TOTAL_LESSONS} dərs tamamlandı`
+                          : `${count} / ${TOTAL_LESSONS} dərs`}
+                      </span>
+                      <span className={`font-extrabold ${isReady ? 'text-green-400' : isGenerating ? 'text-amber-400' : 'text-gray-500'}`}>
+                        {pct}%
+                      </span>
+                    </div>
+
+                    <div className="h-3 bg-gray-800 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-700 ${
+                          isReady
+                            ? 'bg-green-500'
+                            : isGenerating
+                            ? 'bg-gradient-to-r from-violet-500 to-blue-500'
+                            : isError
+                            ? 'bg-red-500'
+                            : 'bg-gray-600'
+                        }`}
+                        style={{ width: `${Math.max(pct, count > 0 ? 5 : 0)}%` }}
+                      />
+                    </div>
+
+                    {/* Animated pulse stripe when generating */}
+                    {isGenerating && (
+                      <div className="mt-2 flex items-center gap-1.5">
+                        <div className="flex gap-1">
+                          {[...Array(3)].map((_, i) => (
+                            <div
+                              key={i}
+                              className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-bounce"
+                              style={{ animationDelay: `${i * 0.15}s` }}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-xs text-gray-500">AI dərsi yazır, avtomatik yenilənir...</span>
+                      </div>
+                    )}
+
+                    {/* Lesson dots */}
+                    <div className="mt-4 flex flex-wrap gap-1.5">
+                      {[...Array(TOTAL_LESSONS)].map((_, i) => {
+                        const done = i < count
+                        const active = isGenerating && i === count
+                        return (
+                          <div
+                            key={i}
+                            title={`Dərs ${i + 1}`}
+                            className={`w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-bold transition-all ${
+                              done
+                                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                                : active
+                                ? 'bg-violet-500/30 text-violet-300 border border-violet-500/50 animate-pulse'
+                                : 'bg-gray-800 text-gray-600 border border-gray-700'
+                            }`}
+                          >
+                            {done ? <CheckCircle size={12} /> : i + 1}
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {/* Program title */}
+                    {prog.programTitle && prog.programTitle !== `${dim.fullLabel} Proqramı` && (
+                      <p className="text-xs text-gray-500 mt-3 flex items-center gap-1.5">
+                        <BookOpen size={11} /> {prog.programTitle}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Generate button */}
                 {!isGenerating && (
                   <button
                     onClick={() => handleGenerate(key)}
-                    disabled={isRunning}
+                    disabled={isStarting}
                     className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition ${
-                      isReady || isError
+                      isReady
                         ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                        : isError
+                        ? 'bg-red-900/40 text-red-300 hover:bg-red-900/60 border border-red-800'
                         : 'bg-violet-600 text-white hover:bg-violet-700'
                     } disabled:opacity-50`}
                   >
-                    {isRunning ? (
+                    {isStarting ? (
                       <><Loader2 size={15} className="animate-spin" /> Başladılır...</>
                     ) : isReady ? (
                       <><RefreshCw size={15} /> Yenidən Generasiya Et</>
@@ -150,20 +238,9 @@ export default function CurriculumAdminPage() {
                     )}
                   </button>
                 )}
-                {isGenerating && (
-                  <p className="text-center text-xs text-amber-400 mt-2">
-                    Hər dərs ayrıca generasiya olunur. Səhifəni avtomatik yeniləyir...
-                  </p>
-                )}
               </div>
-            </div>
-          )
-        })}
-      </div>
-
-      {loading && (
-        <div className="text-center py-12">
-          <Loader2 size={32} className="text-violet-500 animate-spin mx-auto" />
+            )
+          })}
         </div>
       )}
     </div>
