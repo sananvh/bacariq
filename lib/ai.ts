@@ -243,7 +243,7 @@ Qeyd: strengths massivindəki elementlər ən yüksək ballı 2 ölçüyə, grow
 export async function generateSkillCurriculum(_skillKey: string, skillLabel: string, category: string) {
   const message = await anthropic.messages.create({
     model: 'claude-opus-4-6',
-    max_tokens: 6000,
+    max_tokens: 12000,
     system: BACARIQ_SYSTEM_PROMPT,
     messages: [
       {

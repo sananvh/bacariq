@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { BookOpen, Headphones, CheckCircle, ChevronRight, Trophy } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 interface Props {
   lessonId: string
@@ -16,7 +16,10 @@ interface Props {
 
 export default function SkillLessonViewer({ lessonId, programId, content, isCompleted: initialDone, nextLesson, allDone }: Props) {
   const router = useRouter()
-  const [mode, setMode] = useState<'read' | 'listen'>('read')
+  const searchParams = useSearchParams()
+  const autoListen = searchParams.get('mode') === 'listen'
+
+  const [mode, setMode] = useState<'read' | 'listen'>(autoListen ? 'listen' : 'read')
   const [done, setDone] = useState(initialDone)
   const [marking, setMarking] = useState(false)
   const [speaking, setSpeaking] = useState(false)
@@ -48,6 +51,20 @@ export default function SkillLessonViewer({ lessonId, programId, content, isComp
   }
 
   useEffect(() => { return () => { window.speechSynthesis.cancel() } }, [])
+
+  // Auto-start listen mode if ?mode=listen
+  useEffect(() => {
+    if (!autoListen || speaking || !content?.textContent) return
+    const text = buildReadAloudText()
+    if (!text) return
+    const utterance = new SpeechSynthesisUtterance(text)
+    utterance.lang = 'az-AZ'
+    utterance.rate = 0.95
+    utterance.onend = () => { setSpeaking(false); setMode('read') }
+    window.speechSynthesis.speak(utterance)
+    setSpeaking(true)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoListen])
 
   async function markComplete() {
     if (done) return
