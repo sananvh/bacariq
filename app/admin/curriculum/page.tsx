@@ -103,16 +103,23 @@ export default function CurriculumAdminPage() {
     }))
     setExpandedSkill(null)
 
-    // Phase 1: generate outline (returns lesson metas + programId)
-    const outlineRes = await fetch('/api/admin/generate-outline', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ skillKey: key }),
-    })
-    const outlineData = await outlineRes.json()
-
-    if (!outlineRes.ok) {
-      setGen(key, { phase: 'error', error: outlineData.error })
+    // Phase 1: generate outline
+    let outlineData: any
+    try {
+      const outlineRes = await fetch('/api/admin/generate-outline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ skillKey: key }),
+      })
+      outlineData = await outlineRes.json()
+      if (!outlineRes.ok) {
+        setGen(key, { phase: 'error', error: outlineData.error ?? 'Outline generation failed' })
+        showToast(`Xəta: ${outlineData.error ?? 'Outline failed'}`)
+        return
+      }
+    } catch (err: any) {
+      setGen(key, { phase: 'error', error: err?.message ?? 'Network error' })
+      showToast(`Şəbəkə xətası: ${err?.message}`)
       return
     }
 
@@ -120,29 +127,42 @@ export default function CurriculumAdminPage() {
     setGen(key, { phase: 'lessons', programId, total: lessons.length, done: [], current: 0 })
     fetchPrograms()
 
-    // Phase 2: generate each lesson one by one (browser controls the loop)
+    // Phase 2: generate each lesson one by one, with 1 retry on failure
+    const completedOrders: number[] = []
+
     for (let i = 0; i < lessons.length; i++) {
       const meta = lessons[i]
       setGen(key, { current: i })
 
-      const lessonRes = await fetch('/api/admin/generate-lesson', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          programId,
-          lesson: meta,
-          skillLabel: dim.fullLabel,
-          category: dim.lessonCategory,
-          totalLessons: lessons.length,
-        }),
-      })
-
-      if (!lessonRes.ok) {
-        // Mark error but continue to next lesson
-        console.warn(`Lesson ${meta.order} failed, continuing...`)
+      let success = false
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const lessonRes = await fetch('/api/admin/generate-lesson', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              programId,
+              lesson: meta,
+              skillLabel: dim.fullLabel,
+              category: dim.lessonCategory,
+              totalLessons: lessons.length,
+            }),
+          })
+          if (lessonRes.ok) { success = true; break }
+          const errData = await lessonRes.json()
+          console.warn(`Lesson ${meta.order} attempt ${attempt + 1} failed:`, errData.error)
+        } catch (err) {
+          console.warn(`Lesson ${meta.order} attempt ${attempt + 1} network error:`, err)
+        }
+        if (attempt === 0) await new Promise(r => setTimeout(r, 3000)) // wait 3s before retry
       }
 
-      setGen(key, { done: Array.from({ length: i + 1 }, (_, n) => lessons[n].order) })
+      if (!success) {
+        console.error(`Lesson ${meta.order} failed after 2 attempts, skipping`)
+      }
+
+      completedOrders.push(meta.order)
+      setGen(key, { done: [...completedOrders] })
       fetchPrograms()
     }
 
@@ -273,8 +293,8 @@ export default function CurriculumAdminPage() {
                         </span>
                       )}
                       {isError && (
-                        <span className="flex items-center gap-1.5 text-xs font-semibold text-red-400 bg-red-400/10 px-2.5 py-1 rounded-full border border-red-400/20">
-                          <AlertCircle size={10} /> Xəta
+                        <span className="flex items-center gap-1.5 text-xs font-semibold text-red-400 bg-red-400/10 px-2.5 py-1 rounded-full border border-red-400/20" title={gen?.error ?? ''}>
+                          <AlertCircle size={10} /> Xəta{gen?.error ? `: ${gen.error.slice(0, 60)}` : ''}
                         </span>
                       )}
                       {!prog && !gen && (
