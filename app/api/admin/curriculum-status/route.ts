@@ -1,15 +1,23 @@
 import { NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 
 export async function GET() {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  // Verify session
+  const authSupabase = await createServerSupabaseClient()
+  const { data: { user } } = await authSupabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: profile } = await supabase.from('User').select('role').eq('id', user.id).single()
+  // Use service client for all DB ops
+  const db = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  )
+
+  const { data: profile } = await db.from('User').select('role').eq('id', user.id).single()
   if (profile?.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-  const { data: programs } = await supabase
+  const { data: programs } = await db
     .from('SkillProgram')
     .select('id, skillKey, status, programTitle')
     .eq('userId', user.id)
@@ -17,7 +25,7 @@ export async function GET() {
 
   const result = []
   for (const prog of programs ?? []) {
-    const { count } = await supabase
+    const { count } = await db
       .from('SkillLesson')
       .select('*', { count: 'exact', head: true })
       .eq('programId', prog.id)

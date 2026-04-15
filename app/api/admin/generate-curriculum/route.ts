@@ -1,16 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { createClient } from '@supabase/supabase-js'
+import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { DIMENSIONS, type DimensionKey } from '@/lib/assessment-questions'
 import { generateCurriculumOutline, generateSingleLessonContent } from '@/lib/ai'
 import cuid from 'cuid'
 
+function serviceClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  )
+}
+
 export async function POST(req: NextRequest) {
-  const supabase = await createServerSupabaseClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  // Verify session
+  const authSupabase = await createServerSupabaseClient()
+  const { data: { user } } = await authSupabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: profile } = await supabase.from('User').select('role').eq('id', user.id).single()
+  // Use service client for all DB ops (bypasses any RLS / key issues)
+  const db = serviceClient()
+
+  // Check role via service client
+  const { data: profile } = await db.from('User').select('role').eq('id', user.id).single()
   if (profile?.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { skillKey } = await req.json() as { skillKey: DimensionKey }
@@ -18,8 +30,8 @@ export async function POST(req: NextRequest) {
 
   const dim = DIMENSIONS[skillKey]
 
-  // Check if a program already exists for this admin user + skill
-  const { data: existing } = await supabase
+  // Check if program already exists
+  const { data: existing } = await db
     .from('SkillProgram')
     .select('id, status')
     .eq('userId', user.id)
@@ -30,18 +42,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Already generating' }, { status: 409 })
   }
 
-  // Delete old program+lessons if error/ready (regenerate)
+  // Delete old program+lessons to regenerate
   if (existing) {
-    const serviceClient = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    )
-    await serviceClient.from('SkillLesson').delete().eq('programId', existing.id)
-    await serviceClient.from('SkillProgram').delete().eq('id', existing.id)
+    await db.from('SkillLesson').delete().eq('programId', existing.id)
+    await db.from('SkillProgram').delete().eq('id', existing.id)
   }
 
   const programId = cuid()
-  await supabase.from('SkillProgram').insert({
+  await db.from('SkillProgram').insert({
     id: programId,
     userId: user.id,
     skillKey,
@@ -53,7 +61,7 @@ export async function POST(req: NextRequest) {
     status: 'generating',
   })
 
-  // Fire generation in background
+  // Fire generation in background (don't await)
   generateInBackground(programId, skillKey, dim.fullLabel, dim.lessonCategory)
 
   return NextResponse.json({ ok: true, programId })
@@ -65,24 +73,21 @@ async function generateInBackground(
   skillLabel: string,
   category: string,
 ) {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  )
+  const db = serviceClient()
 
   try {
-    // Phase 1: outline
+    // Phase 1: lightweight outline
     const outline = await generateCurriculumOutline(skillKey, skillLabel, category)
     if (!outline) throw new Error('No outline returned')
 
-    await supabase.from('SkillProgram').update({
+    await db.from('SkillProgram').update({
       programTitle: outline.programTitle,
       programDescription: outline.programDescription,
       totalDurationWeeks: outline.totalDurationWeeks ?? 4,
       examQuestions: outline.finalExamQuestions ?? [],
     }).eq('id', programId)
 
-    // Phase 2: one lesson at a time
+    // Phase 2: full content for each lesson one by one
     const metas = (outline.lessons ?? []).slice(0, 12)
     for (const meta of metas) {
       const content = await generateSingleLessonContent({
@@ -95,7 +100,7 @@ async function generateInBackground(
         skillLabel,
       })
 
-      await supabase.from('SkillLesson').insert({
+      await db.from('SkillLesson').insert({
         id: cuid(),
         programId,
         order: meta.order,
@@ -106,13 +111,13 @@ async function generateInBackground(
         content: content ?? null,
       })
 
-      console.log(`✓ ${skillLabel} — dərs ${meta.order}/${metas.length} tamamlandı`)
+      console.log(`✓ ${skillLabel} — dərs ${meta.order}/${metas.length}`)
     }
 
-    await supabase.from('SkillProgram').update({ status: 'ready' }).eq('id', programId)
-    console.log(`✅ ${skillLabel} proqramı hazırdır`)
+    await db.from('SkillProgram').update({ status: 'ready' }).eq('id', programId)
+    console.log(`✅ ${skillLabel} hazırdır`)
   } catch (err) {
     console.error('Generation error:', err)
-    await supabase.from('SkillProgram').update({ status: 'error' }).eq('id', programId)
+    await db.from('SkillProgram').update({ status: 'error' }).eq('id', programId)
   }
 }
