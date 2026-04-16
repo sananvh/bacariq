@@ -14,7 +14,11 @@ export async function POST(req: NextRequest) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   )
 
-  await supabase.from('SkillProgram').update({ status }).eq('id', programId)
+  const { error } = await supabase.from('SkillProgram').update({ status }).eq('id', programId)
+  if (error) {
+    console.error('finalize-program update error:', error)
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
 
   return NextResponse.json({ ok: true })
 }

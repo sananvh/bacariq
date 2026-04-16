@@ -156,11 +156,16 @@ export default function CurriculumAdminPage() {
     }
 
     // Phase 3: finalize
-    await fetch('/api/admin/finalize-program', {
+    const finalizeRes = await fetch('/api/admin/finalize-program', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ programId, status: 'ready' }),
     })
+    if (!finalizeRes.ok) {
+      const err = await finalizeRes.json().catch(() => ({}))
+      console.error('finalize-program failed:', err)
+      showToast('Tamamlandı amma status yenilənmədi — səhifəni yeniləyin')
+    }
 
     setGen(key, { phase: 'done' })
     fetchPrograms()
@@ -219,11 +224,14 @@ export default function CurriculumAdminPage() {
             const prog = getProgram(key)
             const gen = genStates[key]
             const isActivelyGenerating = gen && gen.phase !== 'done' && gen.phase !== 'error'
-            const isReady = prog?.status === 'ready' && !isActivelyGenerating
+            // Ready: DB says ready, OR this session just finished generating
+            const isReady = (prog?.status === 'ready' || gen?.phase === 'done') && !isActivelyGenerating
             const isError = (prog?.status === 'error' || gen?.phase === 'error') && !isActivelyGenerating
+            // Stuck: DB still shows 'generating' but no active client gen (interrupted by page reload etc.)
+            const isStuck = prog?.status === 'generating' && !isActivelyGenerating && gen?.phase !== 'done'
             const isExpanded = expandedSkill === key
 
-            const doneLessons = gen?.done?.length ?? (isReady ? (prog?.lessonCount ?? 0) : 0)
+            const doneLessons = gen?.done?.length ?? ((isReady || isStuck) ? (prog?.lessonCount ?? 0) : 0)
             const totalLessons = gen?.total ?? TOTAL_LESSONS
             const pct = Math.round((doneLessons / totalLessons) * 100)
             const currentLesson = gen?.current ?? 0
@@ -250,7 +258,12 @@ export default function CurriculumAdminPage() {
                       )}
                       {isReady && (
                         <span className="flex items-center gap-1.5 text-xs font-semibold text-green-400 bg-green-400/10 px-2.5 py-1 rounded-full border border-green-400/20">
-                          <CheckCircle size={10} /> Hazır — {prog?.lessonCount ?? TOTAL_LESSONS} dərs
+                          <CheckCircle size={10} /> Hazır — {prog?.lessonCount ?? gen?.done?.length ?? TOTAL_LESSONS} dərs
+                        </span>
+                      )}
+                      {isStuck && (
+                        <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-400 bg-amber-400/10 px-2.5 py-1 rounded-full border border-amber-400/20">
+                          <AlertCircle size={10} /> Yarıda kəsildi — yenidən başladın
                         </span>
                       )}
                       {isError && (
@@ -273,9 +286,10 @@ export default function CurriculumAdminPage() {
                               : isActivelyGenerating
                               ? `Dərs ${doneLessons + 1} / ${totalLessons} yazılır...`
                               : isReady ? 'Bütün dərslər tamamlandı'
+                              : isStuck ? `${prog?.lessonCount ?? 0} / ${totalLessons} dərs (yarıda kəsildi)`
                               : `${doneLessons} / ${totalLessons} dərs`}
                           </span>
-                          <span className={`font-extrabold text-sm ${isReady ? 'text-green-400' : isActivelyGenerating ? 'text-violet-300' : 'text-gray-500'}`}>
+                          <span className={`font-extrabold text-sm ${isReady ? 'text-green-400' : isActivelyGenerating ? 'text-violet-300' : isStuck ? 'text-amber-400' : 'text-gray-500'}`}>
                             {gen?.phase === 'outline' ? '...' : `${pct}%`}
                           </span>
                         </div>
@@ -288,6 +302,7 @@ export default function CurriculumAdminPage() {
                             className={`h-full rounded-full transition-all duration-500 ${
                               isReady ? 'bg-green-500'
                               : isActivelyGenerating ? 'bg-gradient-to-r from-violet-600 to-blue-500'
+                              : isStuck ? 'bg-amber-600'
                               : isError ? 'bg-red-600' : 'bg-gray-600'
                             }`}
                             style={{ width: gen?.phase === 'outline' ? '8%' : `${Math.max(pct, doneLessons > 0 ? 6 : 0)}%` }}
@@ -318,17 +333,19 @@ export default function CurriculumAdminPage() {
 
                   {/* Action buttons */}
                   <div className="flex flex-col gap-2 shrink-0">
-                    {isReady && (
+                    {(isReady || isStuck) && prog && (
                       <>
-                        {/* View Program */}
-                        <a
-                          href={`/program/${prog!.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 text-xs font-bold text-white bg-violet-600 hover:bg-violet-700 px-3 py-2 rounded-xl transition"
-                        >
-                          <ExternalLink size={13} /> Proqrama Bax
-                        </a>
+                        {/* View Program — only when truly ready */}
+                        {isReady && (
+                          <a
+                            href={`/program/${prog.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 text-xs font-bold text-white bg-violet-600 hover:bg-violet-700 px-3 py-2 rounded-xl transition"
+                          >
+                            <ExternalLink size={13} /> Proqrama Bax
+                          </a>
+                        )}
 
                         {/* Toggle lessons */}
                         <button
@@ -343,14 +360,18 @@ export default function CurriculumAdminPage() {
                         {/* Regenerate */}
                         <button
                           onClick={() => handleGenerate(key)}
-                          className="flex items-center gap-1.5 text-xs font-bold text-gray-400 bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded-xl transition"
+                          className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl transition ${
+                            isStuck
+                              ? 'bg-amber-700/40 text-amber-300 hover:bg-amber-700/60'
+                              : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                          }`}
                         >
-                          <RefreshCw size={13} /> Yenidən Generasiya
+                          <RefreshCw size={13} /> {isStuck ? 'Yenidən Başlat' : 'Yenidən Generasiya'}
                         </button>
                       </>
                     )}
 
-                    {!isActivelyGenerating && !isReady && (
+                    {!isActivelyGenerating && !isReady && !isStuck && (
                       <button
                         onClick={() => handleGenerate(key)}
                         className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl transition ${
@@ -365,7 +386,7 @@ export default function CurriculumAdminPage() {
                 </div>
 
                 {/* Expanded lesson list */}
-                {isExpanded && prog && (
+                {isExpanded && prog && (isReady || isStuck) && (
                   <LessonList
                     key={`${prog.id}-${lessonListKey}`}
                     programId={prog.id}
