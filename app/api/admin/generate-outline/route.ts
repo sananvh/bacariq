@@ -21,6 +21,10 @@ export async function POST(req: NextRequest) {
     const { data: profile } = await supabase.from('User').select('role').eq('id', user.id).single()
     if (profile?.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return NextResponse.json({ error: 'ANTHROPIC_API_KEY is not set in environment variables' }, { status: 500 })
+    }
+
     const { skillKey } = await req.json() as { skillKey: DimensionKey }
     if (!DIMENSIONS[skillKey]) return NextResponse.json({ error: 'Invalid skillKey' }, { status: 400 })
 
