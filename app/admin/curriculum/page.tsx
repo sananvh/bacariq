@@ -5,7 +5,7 @@ import { DIMENSIONS, type DimensionKey } from '@/lib/assessment-questions'
 import {
   Loader2, CheckCircle, AlertCircle, Play, RefreshCw,
   BookOpen, ChevronDown, ChevronUp, X, Headphones,
-  ThumbsUp, RotateCcw,
+  ThumbsUp, RotateCcw, ExternalLink, MessageSquare, ChevronRight,
 } from 'lucide-react'
 
 const SKILL_KEYS: DimensionKey[] = ['K', 'L', 'A', 'D', 'S', 'C']
@@ -41,9 +41,9 @@ interface ProgramStatus {
 
 interface GenState {
   phase: 'outline' | 'lessons' | 'done' | 'error'
-  current: number   // lesson index being generated (0-based)
+  current: number
   total: number
-  done: number[]    // lesson orders completed
+  done: number[]
   programId: string | null
   error?: string
 }
@@ -60,14 +60,12 @@ export default function CurriculumAdminPage() {
   const [loading, setLoading] = useState(true)
   const [genStates, setGenStates] = useState<Record<string, GenState>>({})
   const [expandedSkill, setExpandedSkill] = useState<string | null>(null)
-  const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null)
-  const [lessonLoading, setLessonLoading] = useState(false)
+  const [modalLesson, setModalLesson] = useState<Lesson | null>(null)
+  const [modalLoading, setModalLoading] = useState(false)
   const [speaking, setSpeaking] = useState(false)
-  const [comment, setComment] = useState('')
-  const [actionLoading, setActionLoading] = useState(false)
-  const [actionMsg, setActionMsg] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [lessonListKey, setLessonListKey] = useState(0) // force-refresh LessonList
 
   async function fetchPrograms() {
     const res = await fetch('/api/admin/curriculum-status')
@@ -86,7 +84,7 @@ export default function CurriculumAdminPage() {
 
   function showToast(msg: string) {
     setToast(msg)
-    setTimeout(() => setToast(null), 3000)
+    setTimeout(() => setToast(null), 3500)
   }
 
   function setGen(key: string, update: Partial<GenState>) {
@@ -95,15 +93,13 @@ export default function CurriculumAdminPage() {
 
   async function handleGenerate(key: DimensionKey) {
     const dim = DIMENSIONS[key]
-
-    // Init gen state
     setGenStates(prev => ({
       ...prev,
       [key]: { phase: 'outline', current: 0, total: TOTAL_LESSONS, done: [], programId: null },
     }))
     setExpandedSkill(null)
 
-    // Phase 1: generate outline
+    // Phase 1: outline
     let outlineData: any
     try {
       const outlineRes = await fetch('/api/admin/generate-outline', {
@@ -127,13 +123,11 @@ export default function CurriculumAdminPage() {
     setGen(key, { phase: 'lessons', programId, total: lessons.length, done: [], current: 0 })
     fetchPrograms()
 
-    // Phase 2: generate each lesson one by one, with 1 retry on failure
+    // Phase 2: one lesson at a time
     const completedOrders: number[] = []
-
     for (let i = 0; i < lessons.length; i++) {
       const meta = lessons[i]
       setGen(key, { current: i })
-
       let success = false
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
@@ -141,8 +135,7 @@ export default function CurriculumAdminPage() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              programId,
-              lesson: meta,
+              programId, lesson: meta,
               skillLabel: dim.fullLabel,
               category: dim.lessonCategory,
               totalLessons: lessons.length,
@@ -154,13 +147,9 @@ export default function CurriculumAdminPage() {
         } catch (err) {
           console.warn(`Lesson ${meta.order} attempt ${attempt + 1} network error:`, err)
         }
-        if (attempt === 0) await new Promise(r => setTimeout(r, 3000)) // wait 3s before retry
+        if (attempt === 0) await new Promise(r => setTimeout(r, 3000))
       }
-
-      if (!success) {
-        console.error(`Lesson ${meta.order} failed after 2 attempts, skipping`)
-      }
-
+      if (!success) console.error(`Lesson ${meta.order} failed after 2 attempts, skipping`)
       completedOrders.push(meta.order)
       setGen(key, { done: [...completedOrders] })
       fetchPrograms()
@@ -175,26 +164,25 @@ export default function CurriculumAdminPage() {
 
     setGen(key, { phase: 'done' })
     fetchPrograms()
+    setLessonListKey(k => k + 1)
     showToast(`"${dim.fullLabel}" proqramı hazırdır ✓`)
   }
 
-  async function openLesson(lesson: Lesson) {
-    setSelectedLesson(null)
-    setLessonLoading(true)
-    setComment('')
-    setActionMsg(null)
+  async function openModal(lesson: Lesson) {
+    setModalLesson(null)
+    setModalLoading(true)
     const res = await fetch(`/api/admin/lesson-review?lessonId=${lesson.id}`)
     if (res.ok) {
       const data = await res.json()
-      setSelectedLesson(data.lesson)
+      setModalLesson(data.lesson)
     }
-    setLessonLoading(false)
+    setModalLoading(false)
   }
 
   function handleSpeak() {
-    if (!selectedLesson?.content?.textContent) return
+    if (!modalLesson?.content?.textContent) return
     if (speaking) { window.speechSynthesis.cancel(); setSpeaking(false); return }
-    const tc = selectedLesson.content.textContent
+    const tc = modalLesson.content.textContent
     const text = [tc.intro, tc.mainConcept, tc.realExample, tc.framework].filter(Boolean).join('\n\n')
     const utt = new SpeechSynthesisUtterance(text)
     utt.lang = 'az-AZ'; utt.rate = 0.95
@@ -205,38 +193,12 @@ export default function CurriculumAdminPage() {
 
   useEffect(() => () => window.speechSynthesis.cancel(), [])
 
-  async function handleAction(action: 'approve' | 'revise') {
-    if (!selectedLesson) return
-    if (action === 'revise' && !comment.trim()) { setActionMsg('Düzəliş üçün şərh yazın'); return }
-    setActionLoading(true); setActionMsg(null)
-    const res = await fetch('/api/admin/lesson-review', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action, lessonId: selectedLesson.id, comment: comment.trim() }),
-    })
-    const json = await res.json()
-    if (res.ok) {
-      if (action === 'approve') {
-        showToast('Dərs təsdiqləndi ✓')
-        setSelectedLesson({ ...selectedLesson, adminApproved: true })
-      } else {
-        showToast('Dərs yenidən generasiya edildi')
-        if (json.newContent) setSelectedLesson({ ...selectedLesson, content: json.newContent, adminApproved: false })
-        setComment('')
-      }
-      fetchPrograms()
-    } else {
-      setActionMsg(json.error ?? 'Xəta baş verdi')
-    }
-    setActionLoading(false)
-  }
-
   const getProgram = (key: string) => programs.find(p => p.skillKey === key)
 
   return (
     <div>
       {toast && (
-        <div className="fixed top-5 right-5 z-50 bg-violet-700 text-white text-sm font-semibold px-5 py-3 rounded-2xl shadow-xl">
+        <div className="fixed top-5 right-5 z-50 bg-violet-700 text-white text-sm font-semibold px-5 py-3 rounded-2xl shadow-xl animate-in slide-in-from-top-2">
           {toast}
         </div>
       )}
@@ -261,7 +223,6 @@ export default function CurriculumAdminPage() {
             const isError = (prog?.status === 'error' || gen?.phase === 'error') && !isActivelyGenerating
             const isExpanded = expandedSkill === key
 
-            // Progress values — prefer live gen state, fall back to DB count
             const doneLessons = gen?.done?.length ?? (isReady ? (prog?.lessonCount ?? 0) : 0)
             const totalLessons = gen?.total ?? TOTAL_LESSONS
             const pct = Math.round((doneLessons / totalLessons) * 100)
@@ -274,11 +235,11 @@ export default function CurriculumAdminPage() {
                   isActivelyGenerating ? 'border-violet-600 shadow-lg shadow-violet-900/20' : 'border-gray-800'
                 }`}
               >
-                <div className="p-5 flex items-center gap-4">
-                  <span className="text-3xl shrink-0">{dim.icon}</span>
+                <div className="p-5 flex items-start gap-4">
+                  <span className="text-3xl shrink-0 mt-0.5">{dim.icon}</span>
 
                   <div className="flex-1 min-w-0">
-                    {/* Title + badge */}
+                    {/* Title + status badge */}
                     <div className="flex items-center gap-2 flex-wrap mb-3">
                       <h2 className="font-extrabold text-white">{dim.fullLabel}</h2>
                       {isActivelyGenerating && (
@@ -302,67 +263,48 @@ export default function CurriculumAdminPage() {
                       )}
                     </div>
 
-                    {/* ── BIG PROGRESS BAR ── */}
+                    {/* Progress bar */}
                     {(isActivelyGenerating || prog) && (
                       <div className="space-y-2">
-                        {/* Percentage label */}
                         <div className="flex items-center justify-between text-xs">
                           <span className="text-gray-400">
                             {gen?.phase === 'outline'
                               ? 'Proqram strukturu hazırlanır...'
                               : isActivelyGenerating
                               ? `Dərs ${doneLessons + 1} / ${totalLessons} yazılır...`
-                              : isReady
-                              ? 'Bütün dərslər tamamlandı'
+                              : isReady ? 'Bütün dərslər tamamlandı'
                               : `${doneLessons} / ${totalLessons} dərs`}
                           </span>
-                          <span className={`font-extrabold text-sm ${
-                            isReady ? 'text-green-400' : isActivelyGenerating ? 'text-violet-300' : 'text-gray-500'
-                          }`}>
+                          <span className={`font-extrabold text-sm ${isReady ? 'text-green-400' : isActivelyGenerating ? 'text-violet-300' : 'text-gray-500'}`}>
                             {gen?.phase === 'outline' ? '...' : `${pct}%`}
                           </span>
                         </div>
 
-                        {/* Main bar */}
                         <div className="h-4 bg-gray-800 rounded-full overflow-hidden relative">
-                          {/* Shimmer overlay when generating */}
                           {isActivelyGenerating && (
                             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-pulse" />
                           )}
                           <div
                             className={`h-full rounded-full transition-all duration-500 ${
-                              isReady
-                                ? 'bg-green-500'
-                                : isActivelyGenerating
-                                ? 'bg-gradient-to-r from-violet-600 to-blue-500'
-                                : isError
-                                ? 'bg-red-600'
-                                : 'bg-gray-600'
+                              isReady ? 'bg-green-500'
+                              : isActivelyGenerating ? 'bg-gradient-to-r from-violet-600 to-blue-500'
+                              : isError ? 'bg-red-600' : 'bg-gray-600'
                             }`}
-                            style={{
-                              width: gen?.phase === 'outline'
-                                ? '8%'
-                                : `${Math.max(pct, doneLessons > 0 ? 6 : 0)}%`,
-                            }}
+                            style={{ width: gen?.phase === 'outline' ? '8%' : `${Math.max(pct, doneLessons > 0 ? 6 : 0)}%` }}
                           />
                         </div>
 
-                        {/* Lesson dots */}
                         <div className="flex gap-1 pt-1">
                           {Array.from({ length: totalLessons }, (_, i) => {
                             const lessonOrder = i + 1
                             const isDone = gen ? gen.done.includes(lessonOrder) : i < (prog?.lessonCount ?? 0)
                             const isCurrent = isActivelyGenerating && gen && i === currentLesson && gen.phase === 'lessons'
                             return (
-                              <div
-                                key={i}
-                                title={`Dərs ${lessonOrder}`}
+                              <div key={i} title={`Dərs ${lessonOrder}`}
                                 className={`flex-1 h-6 rounded-md flex items-center justify-center text-[9px] font-bold transition-all duration-300 ${
-                                  isDone
-                                    ? 'bg-green-500/30 text-green-400 border border-green-500/40'
-                                    : isCurrent
-                                    ? 'bg-violet-500/40 text-violet-200 border border-violet-400/60 animate-pulse'
-                                    : 'bg-gray-800 text-gray-600 border border-gray-700'
+                                  isDone ? 'bg-green-500/30 text-green-400 border border-green-500/40'
+                                  : isCurrent ? 'bg-violet-500/40 text-violet-200 border border-violet-400/60 animate-pulse'
+                                  : 'bg-gray-800 text-gray-600 border border-gray-700'
                                 }`}
                               >
                                 {isDone ? '✓' : lessonOrder}
@@ -377,25 +319,46 @@ export default function CurriculumAdminPage() {
                   {/* Action buttons */}
                   <div className="flex flex-col gap-2 shrink-0">
                     {isReady && (
-                      <button
-                        onClick={() => setExpandedSkill(isExpanded ? null : key)}
-                        className="flex items-center gap-1.5 text-xs font-bold text-gray-300 bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded-xl transition"
-                      >
-                        <BookOpen size={13} />
-                        Dərslər
-                        {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                      </button>
+                      <>
+                        {/* View Program */}
+                        <a
+                          href={`/program/${prog!.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 text-xs font-bold text-white bg-violet-600 hover:bg-violet-700 px-3 py-2 rounded-xl transition"
+                        >
+                          <ExternalLink size={13} /> Proqrama Bax
+                        </a>
+
+                        {/* Toggle lessons */}
+                        <button
+                          onClick={() => setExpandedSkill(isExpanded ? null : key)}
+                          className="flex items-center gap-1.5 text-xs font-bold text-gray-300 bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded-xl transition"
+                        >
+                          <BookOpen size={13} />
+                          Dərslər
+                          {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                        </button>
+
+                        {/* Regenerate */}
+                        <button
+                          onClick={() => handleGenerate(key)}
+                          className="flex items-center gap-1.5 text-xs font-bold text-gray-400 bg-gray-800 hover:bg-gray-700 px-3 py-2 rounded-xl transition"
+                        >
+                          <RefreshCw size={13} /> Yenidən Generasiya
+                        </button>
+                      </>
                     )}
-                    {!isActivelyGenerating && (
+
+                    {!isActivelyGenerating && !isReady && (
                       <button
                         onClick={() => handleGenerate(key)}
                         className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl transition ${
-                          isReady ? 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                          : isError ? 'bg-red-900/40 text-red-300 hover:bg-red-900/60'
+                          isError ? 'bg-red-900/40 text-red-300 hover:bg-red-900/60'
                           : 'bg-violet-600 text-white hover:bg-violet-700'
                         }`}
                       >
-                        {isReady ? <><RefreshCw size={13} /> Yenidən</> : isError ? <><RefreshCw size={13} /> Yenidən</> : <><Play size={13} /> Generasiya Et</>}
+                        {isError ? <><RefreshCw size={13} /> Yenidən Cəhd Et</> : <><Play size={13} /> Generasiya Et</>}
                       </button>
                     )}
                   </div>
@@ -403,7 +366,14 @@ export default function CurriculumAdminPage() {
 
                 {/* Expanded lesson list */}
                 {isExpanded && prog && (
-                  <LessonList programId={prog.id} onOpen={openLesson} />
+                  <LessonList
+                    key={`${prog.id}-${lessonListKey}`}
+                    programId={prog.id}
+                    skillLabel={prog.programTitle}
+                    dim={DIMENSIONS[key as DimensionKey]}
+                    onOpenModal={openModal}
+                    onToast={showToast}
+                  />
                 )}
               </div>
             )
@@ -411,44 +381,53 @@ export default function CurriculumAdminPage() {
         </div>
       )}
 
-      {/* Lesson Detail Modal */}
-      {(selectedLesson || lessonLoading) && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-start justify-end p-4" onClick={() => { setSelectedLesson(null); window.speechSynthesis.cancel() }}>
-          <div className="bg-gray-950 border border-gray-800 rounded-2xl w-full max-w-2xl h-[calc(100vh-2rem)] flex flex-col shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
-            {lessonLoading ? (
+      {/* Full content modal */}
+      {(modalLesson || modalLoading) && (
+        <div
+          className="fixed inset-0 bg-black/70 z-50 flex items-start justify-end p-4"
+          onClick={() => { setModalLesson(null); window.speechSynthesis.cancel(); setSpeaking(false) }}
+        >
+          <div
+            className="bg-gray-950 border border-gray-800 rounded-2xl w-full max-w-2xl h-[calc(100vh-2rem)] flex flex-col shadow-2xl overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            {modalLoading ? (
               <div className="flex-1 flex items-center justify-center">
                 <Loader2 size={32} className="text-violet-500 animate-spin" />
               </div>
-            ) : selectedLesson ? (
+            ) : modalLesson ? (
               <>
                 <div className="flex items-start justify-between gap-3 p-5 border-b border-gray-800 shrink-0">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${diffColor[selectedLesson.difficulty] ?? diffColor.beginner}`}>
-                        {diffLabel[selectedLesson.difficulty]}
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${diffColor[modalLesson.difficulty] ?? diffColor.beginner}`}>
+                        {diffLabel[modalLesson.difficulty]}
                       </span>
-                      <span className="text-xs text-gray-500">Dərs {selectedLesson.order}</span>
-                      {selectedLesson.adminApproved && (
+                      <span className="text-xs text-gray-500">Dərs {modalLesson.order}</span>
+                      {modalLesson.adminApproved && (
                         <span className="flex items-center gap-1 text-xs text-green-400 bg-green-900/20 border border-green-700/30 px-2 py-0.5 rounded-full">
                           <CheckCircle size={10} /> Təsdiqlənib
                         </span>
                       )}
                     </div>
-                    <h3 className="font-extrabold text-white text-base leading-snug">{selectedLesson.title}</h3>
+                    <h3 className="font-extrabold text-white text-base leading-snug">{modalLesson.title}</h3>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <button onClick={handleSpeak} className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl transition ${speaking ? 'bg-violet-600 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}>
+                    <button
+                      onClick={handleSpeak}
+                      className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl transition ${speaking ? 'bg-violet-600 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}`}
+                    >
                       <Headphones size={13} /> {speaking ? 'Dayandır' : 'Dinlə'}
                     </button>
-                    <button onClick={() => { setSelectedLesson(null); window.speechSynthesis.cancel() }} className="text-gray-500 hover:text-white p-1">
+                    <button onClick={() => { setModalLesson(null); window.speechSynthesis.cancel(); setSpeaking(false) }} className="text-gray-500 hover:text-white p-1">
                       <X size={20} />
                     </button>
                   </div>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-5 space-y-4">
-                  {selectedLesson.content?.textContent ? (() => {
-                    const tc = selectedLesson.content.textContent
+                  {modalLesson.content?.textContent ? (() => {
+                    const tc = modalLesson.content.textContent
                     return (
                       <>
                         {tc.intro && <div className="bg-violet-900/20 border-l-4 border-violet-500 rounded-r-xl p-4"><p className="text-violet-200 font-semibold text-sm leading-relaxed">{tc.intro}</p></div>}
@@ -461,41 +440,22 @@ export default function CurriculumAdminPage() {
                             <ul className="space-y-2">
                               {tc.exercises.map((ex: string, i: number) => (
                                 <li key={i} className="flex items-start gap-2 text-gray-300 text-sm">
-                                  <span className="w-5 h-5 bg-amber-900/40 text-amber-400 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">{i+1}</span>
+                                  <span className="w-5 h-5 bg-amber-900/40 text-amber-400 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">{i + 1}</span>
                                   {ex}
                                 </li>
                               ))}
                             </ul>
                           </div>
                         )}
+                        {tc.nextStep && (
+                          <div className="bg-gray-800 rounded-xl p-4">
+                            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Növbəti Addım</p>
+                            <p className="text-gray-300 text-sm">{tc.nextStep}</p>
+                          </div>
+                        )}
                       </>
                     )
                   })() : <div className="text-center py-10 text-gray-600">Məzmun mövcud deyil</div>}
-                </div>
-
-                <div className="p-5 border-t border-gray-800 space-y-3 shrink-0">
-                  {selectedLesson.adminComment && (
-                    <div className="bg-gray-800 rounded-xl px-4 py-3 text-xs text-gray-400">
-                      <span className="font-bold text-gray-300">Əvvəlki şərh: </span>{selectedLesson.adminComment}
-                    </div>
-                  )}
-                  <textarea
-                    value={comment}
-                    onChange={e => setComment(e.target.value)}
-                    placeholder="Şərh / düzəliş təlimatı yazın... (məs: daha çox Azərbaycan nümunəsi əlavə et)"
-                    className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-sm text-gray-200 placeholder-gray-600 resize-none focus:outline-none focus:border-violet-500"
-                    rows={3}
-                  />
-                  {actionMsg && <p className="text-xs text-red-400">{actionMsg}</p>}
-                  <div className="flex gap-2">
-                    <button onClick={() => handleAction('revise')} disabled={actionLoading || !comment.trim()} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-200 font-bold text-sm rounded-xl transition disabled:opacity-40">
-                      {actionLoading ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />} AI ilə Yenidən Yaz
-                    </button>
-                    <button onClick={() => handleAction('approve')} disabled={actionLoading || selectedLesson.adminApproved} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-green-700 hover:bg-green-600 text-white font-bold text-sm rounded-xl transition disabled:opacity-40">
-                      {actionLoading ? <Loader2 size={14} className="animate-spin" /> : <ThumbsUp size={14} />}
-                      {selectedLesson.adminApproved ? 'Təsdiqlənib' : 'Təsdiqlə'}
-                    </button>
-                  </div>
                 </div>
               </>
             ) : null}
@@ -506,37 +466,193 @@ export default function CurriculumAdminPage() {
   )
 }
 
-function LessonList({ programId, onOpen }: { programId: string; onOpen: (l: Lesson) => void }) {
+// ── Lesson List (per-skill accordion) ──────────────────────────────────────
+
+interface LessonListProps {
+  programId: string
+  skillLabel: string
+  dim: (typeof DIMENSIONS)[DimensionKey]
+  onOpenModal: (l: Lesson) => void
+  onToast: (msg: string) => void
+}
+
+interface LessonRowState {
+  expanded: boolean
+  comment: string
+  loading: boolean
+  msg: string | null
+}
+
+function LessonList({ programId, onOpenModal, onToast }: LessonListProps) {
   const [lessons, setLessons] = useState<Lesson[]>([])
-  const [loading, setLoading] = useState(true)
+  const [fetching, setFetching] = useState(true)
+  const [rowStates, setRowStates] = useState<Record<string, LessonRowState>>({})
 
   useEffect(() => {
     fetch(`/api/admin/curriculum-lessons?programId=${programId}`)
       .then(r => r.json())
-      .then(d => { setLessons(d.lessons ?? []); setLoading(false) })
+      .then(d => { setLessons(d.lessons ?? []); setFetching(false) })
   }, [programId])
 
-  if (loading) return <div className="px-5 pb-5 text-center text-gray-600 text-sm flex items-center gap-2 justify-center py-4"><Loader2 size={14} className="animate-spin" /> Dərslər yüklənir...</div>
+  function getRow(id: string): LessonRowState {
+    return rowStates[id] ?? { expanded: false, comment: '', loading: false, msg: null }
+  }
+
+  function setRow(id: string, update: Partial<LessonRowState>) {
+    setRowStates(prev => ({ ...prev, [id]: { ...getRow(id), ...update } }))
+  }
+
+  async function handleAction(lesson: Lesson, action: 'approve' | 'revise') {
+    const row = getRow(lesson.id)
+    if (action === 'revise' && !row.comment.trim()) {
+      setRow(lesson.id, { msg: 'Şərh yazın' })
+      return
+    }
+    setRow(lesson.id, { loading: true, msg: null })
+    const res = await fetch('/api/admin/lesson-review', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, lessonId: lesson.id, comment: row.comment.trim() }),
+    })
+    const json = await res.json()
+    if (res.ok) {
+      if (action === 'approve') {
+        setLessons(prev => prev.map(l => l.id === lesson.id ? { ...l, adminApproved: true } : l))
+        setRow(lesson.id, { loading: false, msg: null, expanded: false })
+        onToast('Dərs təsdiqləndi ✓')
+      } else {
+        const newContent = json.newContent
+        setLessons(prev => prev.map(l => l.id === lesson.id ? { ...l, content: newContent ?? l.content, adminApproved: false } : l))
+        setRow(lesson.id, { loading: false, msg: 'Dərs yenidən yazıldı. Nəzərdən keçib təsdiqlə.', comment: '' })
+        onToast('Dərs yenidən generasiya edildi')
+      }
+    } else {
+      setRow(lesson.id, { loading: false, msg: json.error ?? 'Xəta baş verdi' })
+    }
+  }
+
+  if (fetching) {
+    return (
+      <div className="border-t border-gray-800 px-5 py-6 flex items-center gap-2 justify-center text-gray-600 text-sm">
+        <Loader2 size={14} className="animate-spin" /> Dərslər yüklənir...
+      </div>
+    )
+  }
+
+  const approvedCount = lessons.filter(l => l.adminApproved).length
 
   return (
     <div className="border-t border-gray-800">
+      {/* Summary bar */}
+      <div className="px-5 py-3 flex items-center justify-between border-b border-gray-800/60">
+        <p className="text-xs text-gray-500">
+          <span className="text-green-400 font-bold">{approvedCount}</span>/{lessons.length} dərs təsdiqlənib
+        </p>
+        <div className="h-1.5 w-32 bg-gray-800 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-green-500 rounded-full transition-all"
+            style={{ width: `${lessons.length ? (approvedCount / lessons.length) * 100 : 0}%` }}
+          />
+        </div>
+      </div>
+
       <ul className="divide-y divide-gray-800">
-        {lessons.map(lesson => (
-          <li key={lesson.id}>
-            <button onClick={() => onOpen(lesson)} className="w-full flex items-center gap-4 px-5 py-3.5 hover:bg-gray-800/50 transition text-left">
-              <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 border ${diffColor[lesson.difficulty] ?? diffColor.beginner}`}>
-                {lesson.order}
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-200 truncate">{lesson.title}</p>
-                <p className="text-xs text-gray-500">{diffLabel[lesson.difficulty]} · ~{Math.round(lesson.durationSeconds/60)} dəq</p>
+        {lessons.map(lesson => {
+          const row = getRow(lesson.id)
+          return (
+            <li key={lesson.id}>
+              {/* Row header */}
+              <div className="flex items-center gap-3 px-5 py-3.5">
+                <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold shrink-0 border ${diffColor[lesson.difficulty] ?? diffColor.beginner}`}>
+                  {lesson.adminApproved ? <CheckCircle size={13} className="text-green-400" /> : lesson.order}
+                </span>
+
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-200 truncate">{lesson.title}</p>
+                  <p className="text-xs text-gray-500">{diffLabel[lesson.difficulty]} · ~{Math.round(lesson.durationSeconds / 60)} dəq</p>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {/* View full content */}
+                  <button
+                    onClick={() => onOpenModal(lesson)}
+                    title="Tam məzmunu gör"
+                    className="flex items-center gap-1 text-xs font-semibold text-gray-400 hover:text-white bg-gray-800 hover:bg-gray-700 px-2.5 py-1.5 rounded-lg transition"
+                  >
+                    <BookOpen size={12} /> Oxu
+                  </button>
+
+                  {/* Toggle inline review */}
+                  <button
+                    onClick={() => setRow(lesson.id, { expanded: !row.expanded })}
+                    title={row.expanded ? 'Bağla' : 'Şərh / Təsdiq'}
+                    className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition ${
+                      row.expanded ? 'bg-violet-700 text-white' : 'bg-gray-800 text-gray-400 hover:text-white hover:bg-gray-700'
+                    }`}
+                  >
+                    <MessageSquare size={12} />
+                    {lesson.adminApproved ? 'Təsdiqlənib' : 'Nəzərdən keç'}
+                    <ChevronRight size={11} className={`transition-transform ${row.expanded ? 'rotate-90' : ''}`} />
+                  </button>
+                </div>
               </div>
-              <div className="shrink-0">
-                {lesson.adminApproved ? <CheckCircle size={15} className="text-green-500" /> : <BookOpen size={15} className="text-gray-600" />}
-              </div>
-            </button>
-          </li>
-        ))}
+
+              {/* Inline review panel */}
+              {row.expanded && (
+                <div className="mx-5 mb-4 bg-gray-800/50 border border-gray-700/60 rounded-xl p-4 space-y-3">
+                  {/* Previous comment */}
+                  {lesson.adminComment && (
+                    <div className="text-xs text-gray-400 bg-gray-800 rounded-lg px-3 py-2">
+                      <span className="font-semibold text-gray-300">Əvvəlki şərh: </span>{lesson.adminComment}
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="text-xs font-semibold text-gray-400 mb-1.5 block">
+                      Şərh / düzəliş təlimatı
+                    </label>
+                    <textarea
+                      value={row.comment}
+                      onChange={e => setRow(lesson.id, { comment: e.target.value, msg: null })}
+                      placeholder="Məs: daha çox Azərbaycan nümunəsi əlavə et, framework hissəsini genişləndir..."
+                      className="w-full bg-gray-900 border border-gray-700 rounded-xl px-3 py-2.5 text-sm text-gray-200 placeholder-gray-600 resize-none focus:outline-none focus:border-violet-500 transition"
+                      rows={3}
+                    />
+                  </div>
+
+                  {row.msg && (
+                    <p className={`text-xs ${row.msg.includes('Xəta') || row.msg === 'Şərh yazın' ? 'text-red-400' : 'text-green-400'}`}>
+                      {row.msg}
+                    </p>
+                  )}
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleAction(lesson, 'revise')}
+                      disabled={row.loading || !row.comment.trim()}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-gray-700 hover:bg-gray-600 text-gray-200 font-bold text-sm rounded-xl transition disabled:opacity-40"
+                    >
+                      {row.loading ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />}
+                      Şərhi nəzərə alaraq Yenidən Yaz
+                    </button>
+                    <button
+                      onClick={() => handleAction(lesson, 'approve')}
+                      disabled={row.loading || lesson.adminApproved}
+                      className={`flex items-center justify-center gap-1.5 px-5 py-2.5 font-bold text-sm rounded-xl transition disabled:opacity-40 ${
+                        lesson.adminApproved
+                          ? 'bg-green-900/40 text-green-400 cursor-default'
+                          : 'bg-green-600 hover:bg-green-500 text-white'
+                      }`}
+                    >
+                      {row.loading ? <Loader2 size={13} className="animate-spin" /> : <ThumbsUp size={13} />}
+                      {lesson.adminApproved ? 'Təsdiqlənib' : 'Təsdiqlə'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </li>
+          )
+        })}
       </ul>
     </div>
   )
