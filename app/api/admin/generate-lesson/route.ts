@@ -59,6 +59,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, order: lesson.order })
   } catch (err: any) {
     console.error('generate-lesson error:', err)
-    return NextResponse.json({ error: err?.message ?? 'Server error' }, { status: 500 })
+    let msg = err?.message ?? 'Server error'
+    try {
+      const jsonStart = msg.indexOf('{')
+      if (jsonStart !== -1) {
+        const parsed = JSON.parse(msg.slice(jsonStart))
+        msg = parsed?.error?.message ?? msg
+      }
+    } catch {}
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }

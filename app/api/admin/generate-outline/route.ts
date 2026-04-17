@@ -76,6 +76,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, programId, lessons })
   } catch (err: any) {
     console.error('generate-outline error:', err)
-    return NextResponse.json({ error: err?.message ?? 'Server error' }, { status: 500 })
+    // Extract clean message from Anthropic SDK errors (which embed JSON in the message string)
+    let msg = err?.message ?? 'Server error'
+    try {
+      // Anthropic SDK throws errors like: "400 {\"type\":\"error\",...}"
+      const jsonStart = msg.indexOf('{')
+      if (jsonStart !== -1) {
+        const parsed = JSON.parse(msg.slice(jsonStart))
+        msg = parsed?.error?.message ?? msg
+      }
+    } catch {}
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
 }

@@ -250,7 +250,7 @@ Qeyd: strengths massivindəki elementlər ən yüksək ballı 2 ölçüyə, grow
 // Phase 1 — lightweight: just titles, descriptions, difficulty per lesson + exam questions
 export async function generateCurriculumOutline(_skillKey: string, skillLabel: string, category: string) {
   const message = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
+    model: 'claude-haiku-4-5-20251001',
     max_tokens: 6000,
     system: BACARIQ_SYSTEM_PROMPT,
     messages: [
@@ -320,7 +320,7 @@ export async function generateSingleLessonContent(params: {
   const difficultyAz = { beginner: 'başlanğıc', intermediate: 'orta', advanced: 'irəliləmiş' }[params.difficulty] ?? params.difficulty
 
   const message = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
+    model: 'claude-haiku-4-5-20251001',
     max_tokens: 4000,
     system: BACARIQ_SYSTEM_PROMPT,
     messages: [
