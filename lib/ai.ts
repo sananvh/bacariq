@@ -43,7 +43,7 @@ export async function generateLesson(params: {
   }[params.difficulty]
 
   const message = await anthropic.messages.create({
-    model: 'claude-opus-4-6',
+    model: 'claude-sonnet-4-6',
     max_tokens: 4000,
     system: BACARIQ_SYSTEM_PROMPT,
     messages: [
@@ -99,7 +99,7 @@ Aşağıdakı JSON strukturunda cavab ver:
 
 export async function analyzeFeedback(feedbacks: Array<{ content: string; type: string }>) {
   const message = await anthropic.messages.create({
-    model: 'claude-opus-4-6',
+    model: 'claude-sonnet-4-6',
     max_tokens: 2000,
     system: BACARIQ_SYSTEM_PROMPT,
     messages: [
@@ -136,7 +136,7 @@ JSON formatında cavab ver:
 
 export async function getSkillTrends() {
   const message = await anthropic.messages.create({
-    model: 'claude-opus-4-6',
+    model: 'claude-sonnet-4-6',
     max_tokens: 2000,
     system: BACARIQ_SYSTEM_PROMPT,
     messages: [
@@ -200,7 +200,7 @@ export async function generateAssessmentPlan(scores: Record<string, number>, use
     .join('\n')
 
   const message = await anthropic.messages.create({
-    model: 'claude-opus-4-6',
+    model: 'claude-sonnet-4-6',
     max_tokens: 2500,
     system: BACARIQ_SYSTEM_PROMPT,
     messages: [
@@ -320,7 +320,7 @@ export async function generateSingleLessonContent(params: {
   const difficultyAz = { beginner: 'başlanğıc', intermediate: 'orta', advanced: 'irəliləmiş' }[params.difficulty] ?? params.difficulty
 
   const message = await anthropic.messages.create({
-    model: 'claude-opus-4-6',
+    model: 'claude-sonnet-4-6',
     max_tokens: 4000,
     system: BACARIQ_SYSTEM_PROMPT,
     messages: [
@@ -365,7 +365,7 @@ Yalnız aşağıdakı JSON strukturunda cavab ver:
 
 export async function generateSkillCurriculum(_skillKey: string, skillLabel: string, category: string) {
   const message = await anthropic.messages.create({
-    model: 'claude-opus-4-6',
+    model: 'claude-sonnet-4-6',
     max_tokens: 12000,
     system: BACARIQ_SYSTEM_PROMPT,
     messages: [
@@ -433,7 +433,7 @@ Tələblər:
 
 export async function generateFinalExam(skillLabel: string, _category: string) {
   const message = await anthropic.messages.create({
-    model: 'claude-opus-4-6',
+    model: 'claude-sonnet-4-6',
     max_tokens: 3000,
     system: BACARIQ_SYSTEM_PROMPT,
     messages: [
@@ -477,7 +477,7 @@ export async function getPersonalizedPath(userProfile: {
   level: string
 }) {
   const message = await anthropic.messages.create({
-    model: 'claude-opus-4-6',
+    model: 'claude-sonnet-4-6',
     max_tokens: 1500,
     system: BACARIQ_SYSTEM_PROMPT,
     messages: [
