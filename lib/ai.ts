@@ -251,40 +251,26 @@ Qeyd: strengths massivindəki elementlər ən yüksək ballı 2 ölçüyə, grow
 export async function generateCurriculumOutline(_skillKey: string, skillLabel: string, category: string) {
   const message = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 6000,
+    max_tokens: 2500,
     system: BACARIQ_SYSTEM_PROMPT,
     messages: [
       {
         role: 'user',
-        content: `"${skillLabel}" bacarığı üzrə öyrənmə proqramının strukturunu yarat (${category} kateqoriyası).
-
-12 dərslik proqram olmalıdır: ilk 4 beginner, növbəti 4 intermediate, son 4 advanced.
-
-YALNIZ aşağıdakı JSON formatında cavab ver. Əlavə mətn yazma:
+        content: `"${skillLabel}" bacarığı üçün 12 dərslik proqram strukturu yarat (${category}).
+İlk 4: beginner, növbəti 4: intermediate, son 4: advanced.
+YALNIZ JSON cavab ver:
 {
-  "programTitle": "Proqramın adı",
-  "programDescription": "2-3 cümlə",
+  "programTitle": "Proqram adı",
+  "programDescription": "1-2 cümlə",
   "totalDurationWeeks": 4,
   "lessons": [
-    {
-      "order": 1,
-      "title": "Dərsin başlığı",
-      "description": "1-2 cümlə",
-      "difficulty": "beginner",
-      "durationSeconds": 900
-    }
+    {"order":1,"title":"Başlıq","description":"1 cümlə","difficulty":"beginner","durationSeconds":900}
   ],
   "finalExamQuestions": [
-    {
-      "question": "Sual mətni",
-      "options": ["A", "B", "C", "D"],
-      "correctIndex": 0,
-      "explanation": "İzah"
-    }
+    {"question":"Sual","options":["A","B","C","D"],"correctIndex":0,"explanation":"İzah"}
   ]
 }
-
-Tam 12 dərs (order 1-12) və tam 10 sual yarat. JSON-u tam bitir.`,
+Tam 12 dərs + 5 sual yarat. JSON-u tam bitir.`,
       },
     ],
   })
@@ -321,36 +307,23 @@ export async function generateSingleLessonContent(params: {
 
   const message = await anthropic.messages.create({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 4000,
+    max_tokens: 1800,
     system: BACARIQ_SYSTEM_PROMPT,
     messages: [
       {
         role: 'user',
-        content: `"${params.skillLabel}" proqramının ${params.order}/${params.totalLessons}-ci dərsi üçün tam mətn məzmunu yarat.
+        content: `"${params.skillLabel}" proqramı, dərs ${params.order}: "${params.title}"
+Çətinlik: ${difficultyAz} | Kateqoriya: ${params.category}
 
-Dərs başlığı: ${params.title}
-Qısa təsvir: ${params.description}
-Çətinlik: ${difficultyAz}
-Kateqoriya: ${params.category}
-
-Yalnız aşağıdakı JSON strukturunda cavab ver:
+Yalnız JSON cavab ver, əlavə mətn olmadan:
 {
   "textContent": {
-    "intro": "Oxucunu dərhal cəlb edən giriş sualı və ya real həyat ssenariyi (2-3 cümlə)",
-    "mainConcept": "Əsas konsept — tam izahat, addım-addım metod, Azərbaycan iş mühitindən misallar. Minimum 400, maksimum 600 söz.",
-    "realExample": "Azərbaycandan konkret real vəziyyət — şirkət/şəxs adı, problem, tətbiq olunan metod, əldə edilən nəticə (150-200 söz)",
-    "framework": "Praktiki çərçivə: bu dərsin əsas metodunu tətbiq etmək üçün 3-5 addımlı sistem (150-200 söz)",
-    "exercises": [
-      "Məşq 1: konkret tapşırıq — bu gün edə biləcəyin",
-      "Məşq 2: kiminləsə birlikdə",
-      "Məşq 3: həftə ərzindəki praktika"
-    ],
-    "checkQuestions": [
-      "Bu dərsin əsas konseptini özünüzə necə izah edərdiniz?",
-      "Real həyatda bu metoddan nə zaman istifadə edərdiniz?",
-      "Bu bacarığı inkişaf etdirmək üçün sabah nə edəcəksiniz?"
-    ],
-    "nextStep": "Növbəti dərsi daha yaxşı mənimsəmək üçün bu gün edə biləcəyin 1 konkret addım"
+    "intro": "1-2 cümlə giriş sualı",
+    "mainConcept": "Əsas konsept — 150-200 söz, Azərbaycan nümunəsi ilə",
+    "realExample": "Azərbaycandan 1 konkret nümunə — 80-100 söz",
+    "framework": "3 addımlı praktiki metod — hər addım 1 cümlə",
+    "exercises": ["Məşq 1", "Məşq 2"],
+    "nextStep": "Bu gün üçün 1 konkret addım"
   }
 }`,
       },
