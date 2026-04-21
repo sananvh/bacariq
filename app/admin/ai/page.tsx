@@ -3,6 +3,17 @@
 import { useState } from 'react'
 import { Zap, Loader2, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react'
 
+interface AILessonContent {
+  title: string
+  description: string
+  learningOutcomes?: string[]
+  videoScript?: Record<string, string>
+  textContent?: Record<string, string | string[]>
+}
+interface GenerateResult {
+  aiContent: AILessonContent
+}
+
 const CATEGORIES = [
   'Kommunikasiya Bacarıqları',
   'Liderlik və Komanda',
@@ -21,7 +32,7 @@ export default function AdminAIPage() {
     targetMinutes: 15,
   })
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<any>(null)
+  const [result, setResult] = useState<GenerateResult | null>(null)
   const [error, setError] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
 
@@ -192,7 +203,7 @@ export default function AdminAIPage() {
                   </button>
                   {expanded === 'video' && (
                     <div className="bg-gray-800/50 rounded-b-xl px-4 pb-4 space-y-2 -mt-1 border border-gray-700 border-t-0">
-                      {Object.entries(content.videoScript).map(([k, v]: any) => (
+                      {Object.entries(content.videoScript).map(([k, v]) => (
                         <div key={k} className="pt-3 border-t border-gray-700 first:border-0 first:pt-0">
                           <p className="text-violet-400 text-xs font-bold mb-1">{k.toUpperCase()}</p>
                           <p className="text-gray-300 text-sm">{v}</p>
@@ -215,7 +226,7 @@ export default function AdminAIPage() {
                   </button>
                   {expanded === 'text' && (
                     <div className="bg-gray-800/50 rounded-b-xl px-4 pb-4 space-y-3 -mt-1 border border-gray-700 border-t-0">
-                      {Object.entries(content.textContent).map(([k, v]: any) => (
+                      {Object.entries(content.textContent).map(([k, v]) => (
                         <div key={k} className="pt-3 border-t border-gray-700 first:border-0 first:pt-0">
                           <p className="text-violet-400 text-xs font-bold mb-1">{k.toUpperCase()}</p>
                           {Array.isArray(v) ? (

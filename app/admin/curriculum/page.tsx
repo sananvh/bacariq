@@ -15,9 +15,20 @@ const SESSION_KEY = 'biq_curriculum_gen'
 interface LessonMeta {
   order: number; title: string; description: string; difficulty: string; durationSeconds: number
 }
+interface TextContent {
+  intro?: string
+  mainConcept?: string
+  realExample?: string
+  framework?: string
+  exercises?: string[]
+}
+interface LessonContent {
+  textContent?: TextContent
+  videoScript?: Record<string, string>
+}
 interface Lesson {
   id: string; order: number; title: string; description: string
-  difficulty: string; durationSeconds: number; content: any
+  difficulty: string; durationSeconds: number; content: LessonContent
   adminApproved: boolean; adminComment: string | null
 }
 interface ProgramStatus {
@@ -90,7 +101,7 @@ export default function CurriculumAdminPage() {
     setExpandedSkill(null)
 
     // Phase 1: outline
-    let outlineData: any
+    let outlineData: unknown
     try {
       const res = await fetch('/api/admin/generate-outline', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -98,12 +109,13 @@ export default function CurriculumAdminPage() {
       })
       outlineData = await res.json()
       if (!res.ok) {
-        setGen(key, { phase: 'error', error: outlineData.error ?? 'Outline failed' })
-        showToast(`Xəta: ${outlineData.error ?? 'Outline failed'}`)
+        const errMsg = (outlineData as { error?: string }).error ?? 'Outline failed'
+        setGen(key, { phase: 'error', error: errMsg })
+        showToast(`Xəta: ${errMsg}`)
         return
       }
-    } catch (err: any) {
-      setGen(key, { phase: 'error', error: err?.message ?? 'Network error' })
+    } catch (err: unknown) {
+      setGen(key, { phase: 'error', error: err instanceof Error ? err.message : 'Network error' })
       return
     }
 
@@ -116,7 +128,6 @@ export default function CurriculumAdminPage() {
     for (let i = 0; i < lessons.length; i++) {
       const meta = lessons[i]
       setGen(key, { current: i })
-      let success = false
       for (let attempt = 0; attempt < 2; attempt++) {
         try {
           const res = await fetch('/api/admin/generate-lesson', {
@@ -519,7 +530,7 @@ function LessonList({ programId, onToast }: { programId: string; onToast: (m: st
                                 <div className="bg-amber-900/15 rounded-xl p-3">
                                   <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider mb-2">Məşq Tapşırıqları</p>
                                   <ul className="space-y-1.5">
-                                    {tc.exercises.map((ex: string, i: number) => (
+                                    {(tc.exercises ?? []).map((ex: string, i: number) => (
                                       <li key={i} className="flex items-start gap-2 text-gray-300 text-sm">
                                         <span className="w-4 h-4 bg-amber-900/40 text-amber-400 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 mt-0.5">{i + 1}</span>
                                         {ex}

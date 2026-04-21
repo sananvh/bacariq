@@ -95,59 +95,210 @@ export interface Question {
   options: QuestionOption[]
 }
 
+// ─── Questions ────────────────────────────────────────────────────────────────
+//
+// Designed around 3 sinergiya pairs so the test directly measures the balance
+// between each paired dimension:
+//
+//  Q1–Q6   →  K (Kommunikasiya) ↔ L (Liderlik)
+//  Q7–Q12  →  A (Analitik Düşüncə) ↔ D (Danışıqlar)
+//  Q13–Q18 →  S (Özünü İdarə) ↔ C (Karyera İnkişafı)
+//  Q19–Q20 →  general mix
+//
+// Each question in a pair block has both paired dimensions as its primary
+// options so a user's natural preference is captured directly in the scores.
+// ──────────────────────────────────────────────────────────────────────────────
+
 export const QUESTIONS: Question[] = [
+  // ── K ↔ L pair ──────────────────────────────────────────────────────────────
   {
     id: 1,
-    text: 'İş yerindəki mühüm dəyişiklik haqqında komandanı məlumatlandırmaq sizin üzərinizdədir. Yanaşmanız nə olacaq?',
+    text: 'İş yerinizdə mühüm bir dəyişiklik baş verir. Komandaya bu barədə məlumat vermək sizin üzərinizdədir. Yanaşmanız nə olacaq?',
     options: [
-      { text: 'Dəyişikliyi anlaşıqlı şəkildə çatdırmaq üçün açıq, strukturlaşdırılmış mesaj hazırlayıram', dim: 'K' },
-      { text: 'Komandanı prosesə cəlb edirəm, hər kəsin narahatlığını idarə edirəm', dim: 'L' },
-      { text: 'Dəyişikliyin səbəblərini və gözlənilən nəticələrini faktlara əsasən analiz edirəm', dim: 'A' },
+      { text: 'Hər kəsin vəziyyəti aydın anlayacağı şəkildə strukturlaşdırılmış mesaj hazırlayıram, sualları birbaşa cavablandırıram', dim: 'K' },
+      { text: 'Komandanı bu dəyişikliyə hazırlamaq üçün motivasiyanı idarə edirəm, narahatlıqları birlikdə həll edirəm', dim: 'L' },
+      { text: 'Dəyişikliyin gözlənilən nəticələrini faktlara əsasən analiz edirəm', dim: 'A' },
       { text: 'Bütün maraqlı tərəflərlə razılığa gəlmək üçün danışıqlar aparıram', dim: 'D' },
     ],
   },
   {
     id: 2,
-    text: 'Həftənin ilk günü masanızda 10-dan çox tapşırıq var. Nə edirsəniz?',
+    text: 'Komanda üzvünüz işdə ciddi çətinlik yaşayır, bu ümumi nəticəyə təsir edir. Necə davranırsınız?',
     options: [
-      { text: 'Tapşırıqları əhəmiyyəti və vaxtındalığına görə sıralayıb ardıcıl yerinə yetirirəm', dim: 'S' },
-      { text: 'Bəzi tapşırıqları komanda üzvlərinin güclü tərəflərinə görə həvalə edirəm', dim: 'L' },
-      { text: 'Hansı tapşırıqların əsl nəticəyə töhfə verdiyini soruşur, lazımsızları kənarlaşdırıram', dim: 'A' },
-      { text: 'Daha az aktual olan bəzi son tarixlər barədə yenidən razılaşmağa çalışıram', dim: 'D' },
+      { text: 'Onunla fərdi görüş keçirir, güclü tərəflərini ortaya çıxarmağa, inkişafına yardım etməyə çalışıram', dim: 'L' },
+      { text: 'Problemi bilavasitə, amma hörmətlə müzakirə edirəm — konkret gözləntiləri açıq şəkildə ifadə edirəm', dim: 'K' },
+      { text: 'Bu vəziyyətin öz işimə olan təsirini minimuma endirmək üçün planımı yenidən tənzimləyirəm', dim: 'S' },
+      { text: 'Hər iki tərəfin ehtiyacını ödəyəcək razılaşmaya nail olmağa çalışıram', dim: 'D' },
     ],
   },
   {
     id: 3,
-    text: 'Rəhbəriniz işinizi kəskin tənqid edir. Reaksiyanız nə olur?',
+    text: 'Yeni komandaya rəhbərlik etməlisiniz. İlk görüşünüzdə ən mühüm şey sizin üçün nədir?',
     options: [
-      { text: 'Tənqidin hansı konkret nöqtələrə aid olduğunu aydınlaşdırmaq üçün suallar verirəm', dim: 'K' },
-      { text: 'Emosiyalarımı bir kənara qoyub cavabımı sakin şəkildə formalaşdırıram', dim: 'S' },
-      { text: 'Tənqidin haqlı olub-olmadığını faktlara əsasən dəyərləndirirəm', dim: 'A' },
-      { text: 'Öz nöqteyi-nəzərimi hörmətlə, amma möhkəm şəkildə bildirirəm', dim: 'D' },
+      { text: 'Öz idarəetmə fəlsəfəmi və gözləntiləri aydın şəkildə çatdırmaq, açıq ünsiyyət mühiti qurmaq', dim: 'K' },
+      { text: 'Hər üzvün güclü tərəfini anlamaq, rolları buna uyğun bölmək və ümumi hədəfi müəyyən etmək', dim: 'L' },
+      { text: 'Komandanın mövcud performans göstəricilərini analiz edib zəif nöqtələri müəyyən etmək', dim: 'A' },
+      { text: 'Bu rəhbərlik imkanını karyera hədəflərimə doğru strateji bir addım kimi görüb planlaşdırmaq', dim: 'C' },
     ],
   },
   {
     id: 4,
-    text: 'Yeni bir vəzifə üçün müsahibəsiniz — əmək haqqı mövzusu gəlir. Necə davranırsınız?',
+    text: 'Bir toplantıda təklifinizi rədd etdilər. Sizcə qərar yanlışdır. Nə edirsiniz?',
     options: [
-      { text: 'Bazar araşdırmama əsaslanaraq konkret gözlənti rəqəmini özüm adlandırıram', dim: 'D' },
-      { text: 'Şirkətin mənə nə təklif etdiyini soruşur, öz gözləntilərimə aydınlıq gətirirəm', dim: 'K' },
-      { text: 'Yalnız ödənişə deyil, karyera inkişafı imkanlarına da önəm verirəm', dim: 'C' },
-      { text: 'Bacarıqlarımın şirkətə yaradacağı dəyəri hesablayıb bunu əsas götürürəm', dim: 'A' },
+      { text: 'Fikirlərimi daha aydın, faktlara əsaslanan şəkildə yenidən ifadə edirəm', dim: 'K' },
+      { text: 'Qrupdakı müxtəlif mövqeləri anlayıb, daha yaxşı qərara doğru müzakirəni istiqamətləndirirəm', dim: 'L' },
+      { text: 'Qərarı qəbul edib, növbəti fürsatda mövqeyimi bildirirəm', dim: 'S' },
+      { text: 'Fikirlərimi dəstəkləyəcək insanlarla ayrıca danışıqlar aparıram', dim: 'D' },
     ],
   },
   {
     id: 5,
-    text: 'Komanda üzvünüz daim iş saatlarından sonra çatışmaz olur, bu da nəticəni pozur. Nə edirsiniz?',
+    text: 'Bir layihədə komanda üzvləri arasında münaqişə var, bu işi ləngidir. Nə edirsiniz?',
     options: [
-      { text: 'Bilavasitə, amma hörmətlə bu barədə birbaşa söhbət edirəm', dim: 'K' },
-      { text: 'Problemi anlayıb birlikdə hər iki tərəf üçün işləyəcək həll tapıram', dim: 'L' },
-      { text: 'Bunun öz işimə olan təsirini minimuma endirmək üçün planımı yenidən qururum', dim: 'S' },
-      { text: 'Hər iki tərəfin ehtiyacını ödəyəcək yazılı razılaşmaya nail olmağa çalışıram', dim: 'D' },
+      { text: 'Hər iki tərəfin öz düşüncəsini açıq ifadə edə biləcəyi mühit yaradıram, dialoqu asanlaşdırıram', dim: 'K' },
+      { text: 'Münaqişənin kökünü anlayıb, hər iki tərəfi ümumi hədəf ətrafında birləşdirməyə çalışıram', dim: 'L' },
+      { text: 'Hər iki tərəfin qəbul edəcəyi kompromis həll irəli sürürəm', dim: 'D' },
+      { text: 'Bu vəziyyəti uzunmüddətli karyerama dərs olaraq qiymətləndirirəm', dim: 'C' },
     ],
   },
   {
     id: 6,
+    text: 'Rəhbəriniz sizə qeyri-müəyyən tapşırıq verib gedir. Nə edirsiniz?',
+    options: [
+      { text: 'Tapşırığı aydınlaşdırmaq üçün dərhal suallar verirəm, gözləntiləri dəqiqləşdirirəm', dim: 'K' },
+      { text: 'Komanda üzvlərimi cəlb edib birlikdə ən yaxşı yanaşmanı müəyyən edirəm', dim: 'L' },
+      { text: 'Mövcud məlumatla irəliləyirəm — lazım gəlsə sonra soruşacağam', dim: 'S' },
+      { text: 'Tapşırığın məqsədini anlamaq üçün mövcud məlumatları analiz edirəm', dim: 'A' },
+    ],
+  },
+
+  // ── A ↔ D pair ──────────────────────────────────────────────────────────────
+  {
+    id: 7,
+    text: 'Şirkətimizdə əhəmiyyətli müqavilə üçün danışıqlar aparacaqsınız. Necə hazırlaşırsınız?',
+    options: [
+      { text: 'Bazar məlumatlarını, qarşı tərəfin mövqeyini, alternativ ssenariləri sistematik analiz edirəm', dim: 'A' },
+      { text: 'Qarşı tərəfin prioritetlərini anlayıb hər iki tərəf üçün faydalı nöqtələri müəyyən edirəm', dim: 'D' },
+      { text: 'Komandamı bu prosesə cəlb edib hər birinin güclü tərəfini istifadə edirəm', dim: 'L' },
+      { text: 'Mövqeyimi aydın, inandırıcı şəkildə çatdıracaq bir çərçivə hazırlayıram', dim: 'K' },
+    ],
+  },
+  {
+    id: 8,
+    text: 'Layihəniz üçün büdcə təsdiqlənmir. Bu gözlənilməz bir maneədir. Nə edirsiniz?',
+    options: [
+      { text: 'Layihənin dəyərini sübut edəcək faktlara əsaslanan güclü bir iş dosyası hazırlayıram', dim: 'A' },
+      { text: 'Qərar vericilərlə müzakirə aparıb büdcəni almaq ya da layihəni yenidən formatlamaq üçün inandırıram', dim: 'D' },
+      { text: 'Mövcud resurslarla ən vacib hissəni tamamlamaq üçün yenidən planlaşdırıram', dim: 'S' },
+      { text: 'Bu vəziyyəti şəxsi yaradıcılığımı nümayiş etdirmək üçün bir imkan kimi görürəm', dim: 'C' },
+    ],
+  },
+  {
+    id: 9,
+    text: 'Araşdırmanıza görə mövcud iş yanaşmanız artıq keçərli deyil, dəyişməlidir. Komanda razı deyil. Nə edirsiniz?',
+    options: [
+      { text: 'Faktları, rəqəmləri, beynəlxalq təcrübəni sənədləşdirib strukturlaşdırılmış arqument hazırlayıram', dim: 'A' },
+      { text: 'Maraqlı tərəflərin narahatlığını anlayıb onları dəyişikliyə inandırmaq üçün strateji söhbətlər aparıram', dim: 'D' },
+      { text: 'Komandanı prosesə cəlb edib dəyişiklik üçün ümumi razılıq yaradıram', dim: 'L' },
+      { text: 'Narahatlığımı açıq şəkildə ifadə edib rəhbərin fikrini almağa çalışıram', dim: 'K' },
+    ],
+  },
+  {
+    id: 10,
+    text: 'Rəhbəriniz işinizi kəskin tənqid edir. Reaksiyanız nə olur?',
+    options: [
+      { text: 'Tənqidin haqlı olub-olmadığını faktlara əsasən dəyərləndirirəm — nəyi düzəltmək lazımdır?', dim: 'A' },
+      { text: 'Öz nöqteyi-nəzərimi hörmətlə, amma möhkəm şəkildə bildirirəm', dim: 'D' },
+      { text: 'Tənqidin hansı konkret nöqtələrə aid olduğunu aydınlaşdırmaq üçün suallar verirəm', dim: 'K' },
+      { text: 'Emosiyalarımı bir kənara qoyub sakit şəkildə fikirləşirəm', dim: 'S' },
+    ],
+  },
+  {
+    id: 11,
+    text: 'Yeni bir layihə üçün iki fərqli strategiya arasında seçim var. Qərar sizdən gözlənir.',
+    options: [
+      { text: 'Hər iki strategiyanın riskini, maliyyə nəticəsini, bazar faktlarını müqayisəli analiz edirəm', dim: 'A' },
+      { text: 'Əsas maraqlı tərəflərin hansı strategiyaya meyil etdiyini öyrənib ümumi razılıq axtarıram', dim: 'D' },
+      { text: 'Komandamı toplantıya çağırıb kollektiv qərarı birlikdə formalaşdırıram', dim: 'L' },
+      { text: 'Ən vacib meyarları müəyyən edib vaxtında qərar verirəm', dim: 'S' },
+    ],
+  },
+  {
+    id: 12,
+    text: 'Müştəri layihənin istiqaməti ilə bağlı narazılığını bildirdi. Yanaşmanız nədir?',
+    options: [
+      { text: 'Layihənin başlanğıc meyarlara uyğun olduğunu sübut edəcək faktlara əsaslanan hesabat hazırlayıram', dim: 'A' },
+      { text: 'Müştərinin əsl narahatlığını anlamaq üçün dərin söhbət aparıram, birgə həll axtarıram', dim: 'D' },
+      { text: 'Müştəriyə şəffaf şəkildə vəziyyəti izah edirəm, gözləntiləri yenidən müəyyən edirəm', dim: 'K' },
+      { text: 'Komanda ilə müştəri problemini birlikdə həll etmək üçün operativ görüş keçirirəm', dim: 'L' },
+    ],
+  },
+
+  // ── S ↔ C pair ──────────────────────────────────────────────────────────────
+  {
+    id: 13,
+    text: 'Gözlənilmədən böyük bir layihə üçün çağırıldınız — karyeranız üçün böyük imkandır, lakin mövcud işləriniz artıq çoxdur.',
+    options: [
+      { text: 'Bunun karyerama uzunmüddətli töhvəsini qiymətləndirirəm — bu imkan üçün vaxt tapıram', dim: 'C' },
+      { text: 'Mövcud öhdəliklərim üçün vaxt cədvəlimi yenidən tənzimləyirəm — həm var işlərimi, həm yeni layihəni idarə edəcəyəm', dim: 'S' },
+      { text: 'Layihənin şərtlərini mənim vəziyyətimlə uyğunlaşdırmaq üçün danışıq aparıram', dim: 'D' },
+      { text: 'Komandamdan bəzi tapşırıqları həvalə edirəm ki, imkan üçün yer açım', dim: 'L' },
+    ],
+  },
+  {
+    id: 14,
+    text: '5 il sonra karyeranızda harada olmaq istədiyinizi düşünürsünüz. Yanaşmanız nədir?',
+    options: [
+      { text: 'Konkret vəzifə, sahə və ya şirkəti müəyyən edib oraya çatmaq üçün yol xəritəsi hazırlayıram', dim: 'C' },
+      { text: 'Hər gün kiçik addımlar atıram — disiplin, fokus və özünü idarəetmə ilə uzağa çatacağam', dim: 'S' },
+      { text: 'Güclü tərəflərimi analiz edib ən böyük potensialımı ortaya çıxaracaq yolu seçirəm', dim: 'A' },
+      { text: 'Sahəmin uğurlu liderlərini müşahidə edib onlardan öyrənirəm', dim: 'L' },
+    ],
+  },
+  {
+    id: 15,
+    text: 'Bir gün işin içindəsiniz: görüşlər, e-poçtlar, acil tapşırıqlar. Axşam bir saatınız var. Nə edirsiniz?',
+    options: [
+      { text: 'Sabah üçün ən vacib 3 tapşırığı sıralayır, sabahın planını hazırlayıram', dim: 'S' },
+      { text: 'Şəbəkəmdəki bir mütəxəssislə əlaqə saxlayıb karyerama dəyər katacak bir söhbət edirəm', dim: 'C' },
+      { text: 'Komanda ilə ünsiyyətimdə gecikmiş yazışmaları cavablandırıram', dim: 'K' },
+      { text: 'Sabahkı vacib görüş üçün strateji hazırlıq edirəm', dim: 'D' },
+    ],
+  },
+  {
+    id: 16,
+    text: 'İllik qiymətləndirmədən sonra rəhbəriniz daha "görünür" olmağı tövsiyə edir. Reaksiyanız nədir?',
+    options: [
+      { text: 'Sənayedəki tədbirlərə, ictimai platformalara, şəbəkə qurmağa daha çox sərmayə qoyuram', dim: 'C' },
+      { text: 'Görünürlüğün öz işimə diqqətimdən yayındırmamasına diqqət edirəm — performansım özünü sübut edəcək', dim: 'S' },
+      { text: 'Fikirlərimi paylaşmaq üçün toplantılarda daha aktiv oluram', dim: 'K' },
+      { text: 'Rəhbərlə açıq danışıq aparıb "görünürlük" altında nəyin nəzərdə tutulduğunu dəqiqləşdirirəm', dim: 'D' },
+    ],
+  },
+  {
+    id: 17,
+    text: 'Karyeranızda irəliləmək üçün yeni bir sahənin biliyini mənimsəmək lazımdır. Yanaşmanız nədir?',
+    options: [
+      { text: 'Həmin sahənin ekspertləri ilə əlaqə qurur, mentorluq axtarır, bu sahəyə strateji investisiya edirəm', dim: 'C' },
+      { text: 'Özüm üçün fərdi öyrənmə planı hazırlayır, hər gün müəyyən vaxt ayırıram', dim: 'S' },
+      { text: 'Mövzunu sistematik şəkildə araşdırır, mənbələri analiz edirəm', dim: 'A' },
+      { text: 'Artıq bu bilikli insanlarla söhbətlər vasitəsilə lazım olan informasiyanı alıram', dim: 'D' },
+    ],
+  },
+  {
+    id: 18,
+    text: 'Böyük bir uğursuzluq yaşadınız — layihə çöküb, müştəri getdi. İlk reaksiyanız nə olur?',
+    options: [
+      { text: 'Özümü tez toparlayıb növbəti addımı planlaşdırıram — irəli baxıram', dim: 'S' },
+      { text: 'Bu uğursuzluqdan karyerama nə öyrənə biləcəyimi, strateji yönümümü düşünürəm', dim: 'C' },
+      { text: 'Nəyin, niyə yanlış getdiyini sistematik şəkildə analiz edirəm', dim: 'A' },
+      { text: 'Komanda ilə açıq söhbət edib birlikdə dərslər çıxarıram', dim: 'L' },
+    ],
+  },
+
+  // ── General mix ─────────────────────────────────────────────────────────────
+  {
+    id: 19,
     text: 'Peşəkar bir konfrans və ya sənaye tədbirinə gedirsəniz. Əsas məqsədiniz nədir?',
     options: [
       { text: 'Yeni insanlarla tanış olmaq, uzunmüddətli peşəkar əlaqələr qurmaq', dim: 'C' },
@@ -157,143 +308,13 @@ export const QUESTIONS: Question[] = [
     ],
   },
   {
-    id: 7,
-    text: 'Rəhbəriniz sizə qeyri-müəyyən tapşırıq verib gedir. Nə edirsiniz?',
-    options: [
-      { text: 'Tapşırığı aydınlaşdırmaq üçün dərhal suallar verirəm', dim: 'K' },
-      { text: 'Tapşırığın arxasındakı məqsədi anlayıb ən məntiqli şərhi seçirəm', dim: 'A' },
-      { text: 'Mövcud məlumatla irəliləyirəm — lazım gəlsə sonra soruşacağam', dim: 'S' },
-      { text: 'Komanda üzvlərimi cəlb edib birlikdə ən yaxşı yanaşmanı müəyyən edirəm', dim: 'L' },
-    ],
-  },
-  {
-    id: 8,
-    text: 'Komandanıza pis xəbər çatdırmalısınız (büdcə kəsilməsi, layihə ləğvi). Yanaşmanız nədir?',
-    options: [
-      { text: 'Xəbəri dürüst, şəffaf şəkildə çatdırıram — nə baş verdiyini tam izah edirəm', dim: 'K' },
-      { text: 'Komandanın reaksiyasını idarə edərək onları stabil tutmağa çalışıram', dim: 'L' },
-      { text: 'Xəbəri çatdırmaq üçün ən əlverişli vaxtı və konteksti seçirəm', dim: 'A' },
-      { text: 'Komandanın emosional reaksiyasına hazırlaşıb cavab ssenariləri düşünürəm', dim: 'S' },
-    ],
-  },
-  {
-    id: 9,
-    text: 'Bir layihə uğursuz oldu, sizin töhvəniz də var idi. İlk reaksiyanız nə olur?',
-    options: [
-      { text: 'Nəyin, niyə yanlış getdiyini sistematik şəkildə analiz edib sənədləşdirirəm', dim: 'A' },
-      { text: 'Özümü tez toplayıb növbəti addımı planlaşdırıram', dim: 'S' },
-      { text: 'Komanda ilə açıq söhbət edib birlikdə dərslər çıxarıram', dim: 'K' },
-      { text: 'Bu uğursuzluqdan karyerama nə öyrənə biləcəyimi düşünürəm', dim: 'C' },
-    ],
-  },
-  {
-    id: 10,
-    text: 'Layihənizin təsdiqi üçün çətin bir komitə qarşısında çıxış edirsiniz. Yanaşmanız nədir?',
-    options: [
-      { text: 'Rəqəm, məlumat və nümunələrlə möhkəm əsaslandırılmış təqdimat hazırlayıram', dim: 'A' },
-      { text: 'Komitənin əsas narahatlığını qabaqcadan müəyyən edib onu ön plana çəkirəm', dim: 'D' },
-      { text: 'Aydın, inandırıcı hekayə qurur, dinləyiciləri ilk saniyədən cəlb edirəm', dim: 'K' },
-      { text: 'Sual gəldikdə özümü sakin saxlayıb düşünülmüş cavab verirəm', dim: 'S' },
-    ],
-  },
-  {
-    id: 11,
-    text: '5 il sonra karyeranızda harada olmaq istədiyinizi düşünürsünüz. Yanaşmanız nədir?',
-    options: [
-      { text: 'Konkret vəzifə, sahə və ya şirkət müəyyən edib oraya çatmaq üçün yol xəritəsi hazırlayıram', dim: 'C' },
-      { text: 'Güclü tərəflərimi analiz edib ən böyük potensialımı ortaya çıxaracaq yolu seçirəm', dim: 'A' },
-      { text: 'Hər gün kiçik addımlar atıram — uzaq hədəfə tədricən yaxınlaşıram', dim: 'S' },
-      { text: 'Sahəmdəki uğurlu liderləri müşahidə edib onlardan öyrənirəm', dim: 'L' },
-    ],
-  },
-  {
-    id: 12,
-    text: 'Texniki bir mövzunu texniki bilgisi olmayan yöneticilərə izah etmək lazımdır. Nə edirsiniz?',
-    options: [
-      { text: 'Sadə analogiya və gündəlik həyatdan nümunələr tapıram', dim: 'K' },
-      { text: 'Yalnız onlar üçün əhəmiyyətli olan məlumat hissəsini seçirəm', dim: 'A' },
-      { text: 'Əvvəlcə onların əsas sualını öyrənir, ona fokuslanıram', dim: 'D' },
-      { text: 'Bu imkanı özümü peşəkar kontekstdə tanıtmaq üçün də istifadə edirəm', dim: 'C' },
-    ],
-  },
-  {
-    id: 13,
-    text: 'İş yükü artdı, stress hiss edirsiniz. Nə edirsiniz?',
-    options: [
-      { text: 'Ən vacib tapşırıqları ayırıb qalanları sonraya qoyur, özümü tənzimləyirəm', dim: 'S' },
-      { text: 'Komandamdan bəzi işlərə dəstək olmalarını xahiş edirəm', dim: 'L' },
-      { text: 'Stressin əsl səbəbini müəyyən edib onu aradan qaldırmağa çalışıram', dim: 'A' },
-      { text: 'Rəhbərimi vəziyyətlə tanış edib prioritetlər barədə yenidən razılaşıram', dim: 'D' },
-    ],
-  },
-  {
-    id: 14,
-    text: 'İki komanda üzvü arasında ciddi münaqişə var, bu sizin işinizə də təsir edir. Nə edirsiniz?',
-    options: [
-      { text: 'Hər iki tərəfin baxış bucağını anlayıb vasitəçi qismində araya girirəm', dim: 'L' },
-      { text: 'Hər iki tərəfi bir araya gətirib açıq ünsiyyəti asanlaşdırıram', dim: 'K' },
-      { text: 'Hər iki tərəfin qəbul edə biləcəyi kompromis həll irəli sürürəm', dim: 'D' },
-      { text: 'Münaqişəyə qoşulmadan öz işimə fokuslanıram', dim: 'S' },
-    ],
-  },
-  {
-    id: 15,
-    text: 'Böyük bir qərar vermək lazım gəlir, məlumat tam deyil. Nə edirsiniz?',
-    options: [
-      { text: 'Mövcud məlumatı sistematik analiz edir, ən ağlabatan gümanlarla irəliləyirəm', dim: 'A' },
-      { text: 'Mütəxəssislərlə məsləhətləşir, müxtəlif perspektivlər toplayıram', dim: 'D' },
-      { text: 'Komandamın kollektiv bilik və təcrübəsinə istinad edirəm', dim: 'L' },
-      { text: 'Qeyri-müəyyənliyə baxmayaraq vaxtında qərar verib irəliləyirəm', dim: 'S' },
-    ],
-  },
-  {
-    id: 16,
-    text: 'Sahənizin ən uğurlu liderlərindən biri ilə 30 dəqiqəlik görüş imkanınız var. Nə edirsiniz?',
-    options: [
-      { text: 'Onların karyera yolu və əsas dərslər haqqında dərin suallar verirəm', dim: 'C' },
-      { text: 'Öz ideyalarımı bölüşür, onların fikrini alıram', dim: 'K' },
-      { text: 'Birgə iş imkanları haqqında konkret danışıqlar aparmağa çalışıram', dim: 'D' },
-      { text: 'Sahəmin gələcəyi haqqında analitik baxışını öyrənirəm', dim: 'A' },
-    ],
-  },
-  {
-    id: 17,
-    text: 'Tamamilə yeni bir vəzifəyə keçdiniz. İlk ayınızda yanaşmanız nədir?',
-    options: [
-      { text: 'Mövcud prosesləri, dinamikanı və rəqəmsal görüntünü tez anlamağa çalışıram', dim: 'A' },
-      { text: 'Komandanın güclü tərəflərini anlayıb onları ən yaxşı şəkildə istifadə etməyə başlayıram', dim: 'L' },
-      { text: 'Bu vəzifəni karyera hədəflərimə doğru bir pilləkən kimi görüb inkişaf planı qururum', dim: 'C' },
-      { text: 'İlk kiçik uğurları qazanmaq üçün prioritetlərimi müəyyən edib həmin sahəyə fokuslanıram', dim: 'S' },
-    ],
-  },
-  {
-    id: 18,
-    text: 'Kolleqanızın işi standartı ödəmir. Buna necə yanaşırsınız?',
-    options: [
-      { text: 'Bilavasitə, amma hörmətlə bu barədə açıq söhbət edirəm', dim: 'K' },
-      { text: 'Zəif tərəflərini gücləndirib professional inkişafına töhfə vermək istəyirəm', dim: 'L' },
-      { text: 'Onunla müəyyən müddət ərzindəki davranış barədə konkret razılaşmaya nail olmağa çalışıram', dim: 'D' },
-      { text: 'Məsələni rəhbərə çatdırmadan öncə özüm həll etməyə çalışıram', dim: 'S' },
-    ],
-  },
-  {
-    id: 19,
-    text: 'Büdcəniz kəsildi, amma hədəfləriniz eyni qaldı. Nə edirsiniz?',
-    options: [
-      { text: 'Minimum resursla maksimum nəticə üçün kreativ həll yolları axtarıram', dim: 'A' },
-      { text: 'Bu çətin vəziyyəti imkanlara çevirmək, özümü sübut etmək fürsəti kimi görürəm', dim: 'C' },
-      { text: 'Rəhbərlik ilə hədəflərin realist şəkildə yenidən müəyyən edilməsi barədə danışıq aparıram', dim: 'D' },
-      { text: 'Ən kritik hədəfləri seçib qalanlarını sonrakı dövrə saxlayıram', dim: 'S' },
-    ],
-  },
-  {
     id: 20,
-    text: 'İllik nəticələrə baxırsınız. Bu ilin ən mühüm dərsi nə idi?',
+    text: 'Həftənin ilk günü masanızda 10-dan çox tapşırıq var. Nə edirsəniz?',
     options: [
-      { text: 'Güclü tərəflərimi daha yaxşı anladım — karyeramı bu istiqamətdə inkişaf etdirəcəyəm', dim: 'C' },
-      { text: 'İnsanlarla ünsiyyətimdə daha dərin, daha effektiv olduğumu hiss etdim', dim: 'K' },
-      { text: 'Qərar qəbulumda daha analitik, daha faktlara əsaslı olduğumu fərq etdim', dim: 'A' },
-      { text: 'Özümü daha yaxşı idarə etmək, stressə daha effektiv yanaşmaq öyrəndim', dim: 'S' },
+      { text: 'Tapşırıqları əhəmiyyəti və vaxtındalığına görə sıralayıb ardıcıl yerinə yetirirəm', dim: 'S' },
+      { text: 'Bəzi tapşırıqları komanda üzvlərinin güclü tərəflərinə görə həvalə edirəm', dim: 'L' },
+      { text: 'Hansı tapşırıqların əsl nəticəyə töhfə verdiyini soruşur, lazımsızları kənarlaşdırıram', dim: 'A' },
+      { text: 'Daha az aktual olan bəzi son tarixlər barədə yenidən razılaşmağa çalışıram', dim: 'D' },
     ],
   },
 ]

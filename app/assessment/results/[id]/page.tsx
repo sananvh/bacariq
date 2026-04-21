@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Brain, Sparkles } from 'lucide-react'
 import CompetencyRadar from '@/components/CompetencyRadar'
 import SkillSelector from '@/components/SkillSelector'
+import ParadoxReport from '@/components/ParadoxReport'
 import GeneratePlanButton from './GeneratePlanButton'
 import { DIMENSIONS, type DimensionKey, getTopDimensions } from '@/lib/assessment-questions'
 
@@ -35,7 +36,7 @@ export default async function AssessmentResultsPage({ params }: PageProps) {
   const scores = result.scores as Record<DimensionKey, number>
   const aiPlan = result.aiPlan
   const { top, bottom } = getTopDimensions(scores)
-  const existingSkillKeys = (existingSkills ?? []).map((s: any) => s.skillKey as DimensionKey)
+  const existingSkillKeys = (existingSkills ?? []).map((s: { skillKey: string }) => s.skillKey as DimensionKey)
   const name = profile?.name || 'İstifadəçi'
 
   return (
@@ -159,6 +160,11 @@ export default async function AssessmentResultsPage({ params }: PageProps) {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Paradox / Synergy Report */}
+        <div className="mb-10">
+          <ParadoxReport scores={scores} name={name} />
         </div>
 
         {/* 4-week plan (paid + plan exists) */}

@@ -1,6 +1,17 @@
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { Users, BookOpen, CheckCircle, MessageSquare, TrendingUp, Crown } from 'lucide-react'
 
+interface LessonProgressRow {
+  lessonId: string
+  Lesson: { title: string; category: string }[]
+}
+interface RecentUser {
+  name: string | null
+  email: string
+  subscriptionPlan: string
+  createdAt: string
+}
+
 export default async function AdminAnalyticsPage() {
   const supabase = await createServerSupabaseClient()
 
@@ -34,8 +45,8 @@ export default async function AdminAnalyticsPage() {
     .limit(200)
 
   const lessonCompletionMap: Record<string, { title: string; category: string; count: number }> = {}
-  for (const p of topLessons ?? []) {
-    const l = (p as any).Lesson
+  for (const p of (topLessons ?? []) as LessonProgressRow[]) {
+    const l = p.Lesson[0]
     if (!l) continue
     if (!lessonCompletionMap[p.lessonId]) {
       lessonCompletionMap[p.lessonId] = { title: l.title, category: l.category, count: 0 }
@@ -204,7 +215,7 @@ export default async function AdminAnalyticsPage() {
             <p className="text-gray-500 text-sm">İstifadəçi yoxdur.</p>
           ) : (
             <ul className="space-y-3">
-              {recentUsers.map((u: any, i) => (
+              {(recentUsers as RecentUser[]).map((u, i) => (
                 <li key={i} className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-violet-800 text-violet-200 text-xs font-bold flex items-center justify-center shrink-0">
                     {(u.name || u.email || 'U').slice(0, 2).toUpperCase()}
