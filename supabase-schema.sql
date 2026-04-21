@@ -271,5 +271,20 @@ create table if not exists "CurriculumSuggestion" (
 );
 alter table "CurriculumSuggestion" disable row level security;
 
+-- 17. UserStreak — tracks user daily learning streaks
+create table if not exists "UserStreak" (
+  id                text primary key,
+  "userId"          uuid not null references "User"(id) on delete cascade,
+  "completedDates"  date[] not null default '{}',
+  "currentStreak"   integer not null default 0,
+  "longestStreak"   integer not null default 0,
+  "lastCompletedDate" date,
+  "updatedAt"       timestamptz not null default now(),
+  unique ("userId")
+);
+
+alter table "UserStreak" disable row level security;
+create index if not exists idx_userstreak_user on "UserStreak"("userId");
+
 -- Qeydiyyatdan sonra özünüzü admin edin:
 -- update "User" set role = 'ADMIN' where email = 'your@email.com';

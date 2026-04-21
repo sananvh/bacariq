@@ -2,6 +2,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { BookOpen, CheckCircle, Clock, Zap, BarChart3, ArrowRight, Plus, Lock } from 'lucide-react'
 import Link from 'next/link'
 import { DIMENSIONS, type DimensionKey } from '@/lib/assessment-questions'
+import StreakCalendar from '@/components/StreakCalendar'
 
 export default async function DashboardPage() {
   const supabase = await createServerSupabaseClient()
@@ -12,11 +13,13 @@ export default async function DashboardPage() {
     { data: userSkills },
     { data: latestAssessment },
     { data: aiRec },
+    { data: streak },
   ] = await Promise.all([
     supabase.from('User').select('name, subscriptionPlan').eq('id', user!.id).single(),
     supabase.from('UserSkill').select('*').eq('userId', user!.id).order('addedAt', { ascending: true }),
     supabase.from('AssessmentResult').select('id, scores, topStrength').eq('userId', user!.id).order('createdAt', { ascending: false }).limit(1).maybeSingle(),
     supabase.from('AIRecommendation').select('*').eq('userId', user!.id).order('createdAt', { ascending: false }).limit(1).maybeSingle(),
+    supabase.from('UserStreak').select('*').eq('userId', user!.id).maybeSingle(),
   ])
 
   const name = profile?.name || user?.email?.split('@')[0] || 'İstifadəçi'
@@ -98,6 +101,17 @@ export default async function DashboardPage() {
         <h1 className="text-3xl font-extrabold text-gray-900">Xoş gəldin, {name}!</h1>
         <p className="text-gray-500 mt-1">Bacarıq inkişaf paneliniz</p>
       </div>
+
+      {/* Streak Calendar */}
+      {streak && (
+        <div className="mb-10">
+          <StreakCalendar 
+            completedDates={Array.isArray(streak.completedDates) ? streak.completedDates : []}
+            currentStreak={streak.currentStreak ?? 0}
+            longestStreak={streak.longestStreak ?? 0}
+          />
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-10">

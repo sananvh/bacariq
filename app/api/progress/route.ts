@@ -1,6 +1,60 @@
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import cuid from 'cuid'
+import { calculateStreakStats, getTodayDate } from '@/lib/streak'
+
+async function updateUserStreak(supabase: any, userId: string) {
+  const today = getTodayDate()
+
+  // Get or create streak record
+  let { data: streak } = await supabase
+    .from('UserStreak')
+    .select('*')
+    .eq('userId', userId)
+    .maybeSingle()
+
+  if (!streak) {
+    await supabase
+      .from('UserStreak')
+      .insert({
+        id: cuid(),
+        userId: userId,
+        completedDates: [today],
+        currentStreak: 1,
+        longestStreak: 1,
+        lastCompletedDate: today,
+        updatedAt: new Date().toISOString(),
+      })
+      .select()
+      .single()
+    return
+  }
+
+  // Update existing streak
+  const completedDates = Array.isArray(streak.completedDates)
+    ? streak.completedDates
+    : []
+
+  // Check if today is already completed
+  if (completedDates.includes(today)) {
+    return
+  }
+
+  // Add today to completed dates
+  const updatedDates = [...completedDates, today]
+  const stats = calculateStreakStats(updatedDates)
+
+  await supabase
+    .from('UserStreak')
+    .update({
+      completedDates: updatedDates,
+      currentStreak: stats.currentStreak,
+      longestStreak: stats.longestStreak,
+      lastCompletedDate: today,
+      updatedAt: new Date().toISOString(),
+    })
+    .eq('userId', userId)
+}
 
 export async function POST(req: Request) {
   try {
@@ -30,6 +84,12 @@ export async function POST(req: Request) {
         .select()
         .single()
       if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+      // Update streak if lesson is marked as completed
+      if (isCompleted) {
+        await updateUserStreak(supabase, user.id)
+      }
+
       return NextResponse.json(data)
     }
 
@@ -47,6 +107,12 @@ export async function POST(req: Request) {
       .single()
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+    // Update streak if lesson is marked as completed
+    if (isCompleted) {
+      await updateUserStreak(supabase, user.id)
+    }
+
     return NextResponse.json(data)
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Server xətası' }, { status: 500 })
